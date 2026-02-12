@@ -1,0 +1,79 @@
+# Amalgamator configuration file
+# CLI flags override these values
+
+# Entry Lua file (required)
+entry: src/main.lua
+
+# Output file, "-" for stdout
+output: dist/bundle.lua
+
+# Base directory for module resolution (defaults to entry file directory)
+root: src/
+
+# Lua path templates, semicolon-separated
+# ? is replaced with the module name (dots become path separators)
+path: "?.lua;?/init.lua"
+
+# Additional search directories (searched after root)
+search:
+  - lib/
+  - vendor/
+
+# Treat unresolved static requires as errors (default: false)
+strict: false
+
+# Prefix Lua code inserted before modules (optional)
+# prefix: |
+#   print("Bundle starting")
+#   -- initialization
+#
+# Suffix Lua code appended after entry require (optional)
+# suffix: |
+#   print("Bundle loaded")
+#   -- extra initialization
+#
+# Package name (optional) - convenience that sets both strip_prefix and package_prefix
+# For libraries: modules are named "mypkg.*" but files don't have "mypkg/" directory
+# Makes require("mypkg.module") work and strips "mypkg." during resolution
+# package_name: "mypkg"
+
+# Package prefix for module names (optional) - advanced
+# Adds namespace to all modules, e.g., "mypkg" makes require("mypkg.module") work
+# (does not strip prefixes during resolution)
+# package_prefix: "mypkg"
+
+# Strip prefix from module names (optional) - advanced
+# Helps with projects where module names include a package prefix that doesn't match directory structure
+# e.g., "tuple_diff" makes require("tuple_diff.lib.foo") find "lib/foo.lua"
+# (does not add prefix to output names)
+# strip_prefix: "tuple_diff"
+
+# Skip packages (optional)
+# Modules matching these patterns will be excluded from amalgamation
+# Exact match or prefix with ".*" (e.g., "xlog.*" matches "xlog.core", "xlog.util")
+# skip_packages:
+#   - "xlog.*"
+#   - "yaml"
+#   - "cjson"
+
+# Include packages (optional)
+# Modules that should be included even if not required by entry point
+# Only exact module names supported (no wildcards)
+# include_packages:
+#   - "plugin.optional"
+#   - "utils.debug"
+
+# Source transformations
+transform:
+  # Remove Lua comments (-- line, --[[ block ]])
+  remove_comments: false
+  
+  # Remove empty/whitespace-only lines  
+  remove_empty_lines: false
+  
+  # Minify Lua source (implies remove_comments and remove_empty_lines)
+  # Basic minification: reduces whitespace, removes comments and empty lines
+  minify: false
+  
+  # Remove shebang line (#!/usr/bin/env lua) from the beginning of Lua files
+  strip_shebang: false

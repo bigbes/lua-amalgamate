@@ -1,0 +1,9 @@
+entry: main.lua
+output: bundle.lua
+root: .
+path: "?.lua;?/init.lua"
+strict: false
+transform:
+  remove_comments: false
+  remove_empty_lines: false
+  minify: false

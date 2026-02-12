@@ -1,0 +1,1 @@
+warning: /Users/blikh/data/workspace/amalgamator/testdata/dynamic/main.lua:2: dynamic require at line 2, cannot resolve

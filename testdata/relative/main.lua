@@ -1,0 +1,5 @@
+local foo = require("./foo")
+local bar = require("sub/bar")
+print("relative test")
+print(foo.say())
+print(bar.say())

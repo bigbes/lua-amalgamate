@@ -1,0 +1,54 @@
+# GoReleaser configuration for lua-amalgamate
+# https://goreleaser.com
+
+version: 2
+
+project_name: lua-amalgamate
+
+env:
+  - CGO_ENABLED=0
+
+builds:
+  - id: lua-amalgamate
+    main: ./cmd/lua-amalgamate
+    binary: lua-amalgamate
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    ignore:
+      - goos: darwin
+        goarch: arm64
+        # macOS ARM64 requires CGO for some libraries, but we disable CGO
+        # Still, we can include it as it's common
+    ldflags:
+      - -s -w -X main.version={{.Version}} -X main.commit={{.Commit}} -X main.date={{.Date}}
+    flags:
+      - -trimpath
+
+archives:
+  - id: lua-amalgamate
+    formats:
+      - tar.gz
+      - zip
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}"
+    files:
+      - README.md
+      - amalg.yaml.example
+      - LICENSE
+
+checksum:
+  name_template: "checksums.txt"
+
+snapshot:
+  version_template: "{{ incpatch .Version }}-next"
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"

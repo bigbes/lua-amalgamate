@@ -6,10 +6,10 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/bigbes/lua-amalgamator/internal/config"
-	"github.com/bigbes/lua-amalgamator/internal/parse"
-	"github.com/bigbes/lua-amalgamator/internal/resolve"
-	"github.com/bigbes/lua-amalgamator/internal/transform"
+	"github.com/bigbes/lua-amalgamate/internal/config"
+	"github.com/bigbes/lua-amalgamate/internal/parse"
+	"github.com/bigbes/lua-amalgamate/internal/resolve"
+	"github.com/bigbes/lua-amalgamate/internal/transform"
 )
 
 type Warning struct {

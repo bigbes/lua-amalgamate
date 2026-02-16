@@ -1,4 +1,4 @@
-module github.com/bigbes/lua-amalgamator
+module github.com/bigbes/lua-amalgamate
 
 go 1.25
 

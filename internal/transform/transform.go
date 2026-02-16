@@ -1,6 +1,6 @@
 package transform
 
-import "github.com/bigbes/lua-amalgamator/internal/config"
+import "github.com/bigbes/lua-amalgamate/internal/config"
 
 type Transformer interface {
 	Transform(source []byte) ([]byte, error)

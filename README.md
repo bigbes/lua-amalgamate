@@ -15,15 +15,15 @@ Instead of inlining module source at call sites, amalgamator registers each modu
 ## Installation
 
 ```bash
-go install github.com/bigbes/lua-amalgamator/cmd/amalg@latest
+go install github.com/bigbes/lua-amalgamate/cmd/lua-amalgamate@latest
 ```
 
 Or build from source:
 
 ```bash
-git clone https://github.com/bigbes/lua-amalgamator
-cd amalgamator
-go install ./cmd/amalg
+git clone https://github.com/bigbes/lua-amalgamate
+cd lua-amalgamate
+go install ./cmd/lua-amalgamate
 ```
 
 ## Quick Start
@@ -38,7 +38,7 @@ project/
 ```
 
 ```bash
-amalg --entry project/main.lua --output bundle.lua
+lua-amalgamate --entry project/main.lua --output bundle.lua
 ```
 
 The resulting `bundle.lua` contains both modules wrapped in `package.preload` assignments and a final `require("main")` to start execution.
@@ -121,7 +121,7 @@ For library projects where modules are named with a package prefix (e.g., `mypkg
 ## Output Format
 
 ```lua
--- Amalgamated by amalg
+-- Amalgamated by lua-amalgamate
 -- Entry: main
 
 -- Prefix code (if any) inserted here

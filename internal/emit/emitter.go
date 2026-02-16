@@ -6,8 +6,8 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/bigbes/lua-amalgamator/internal/graph"
-	"github.com/bigbes/lua-amalgamator/internal/transform"
+	"github.com/bigbes/lua-amalgamate/internal/graph"
+	"github.com/bigbes/lua-amalgamate/internal/transform"
 )
 
 func Emit(w io.Writer, g *graph.Graph, transforms []transform.Transformer, prefix, suffix string) error {

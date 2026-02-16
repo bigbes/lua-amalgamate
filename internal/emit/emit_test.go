@@ -5,8 +5,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/bigbes/lua-amalgamator/internal/graph"
-	"github.com/bigbes/lua-amalgamator/internal/parse"
+	"github.com/bigbes/lua-amalgamate/internal/graph"
+	"github.com/bigbes/lua-amalgamate/internal/parse"
 )
 
 func TestEmitSingleModule(t *testing.T) {
@@ -46,7 +46,7 @@ func TestEmitSingleModule(t *testing.T) {
 
 	output := buf.String()
 	expectedLines := []string{
-		"-- Amalgamated by amalg",
+		"-- Amalgamated by lua-amalgamate",
 		"-- Entry: main",
 		"package.preload[\"main\"] = function(...)",
 		"  print('hello')",

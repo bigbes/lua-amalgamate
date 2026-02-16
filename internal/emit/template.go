@@ -6,7 +6,7 @@ import (
 )
 
 const templateText = `
--- Amalgamated by amalg
+-- Amalgamated by lua-amalgamate
 -- Entry: {{.EntryName}}
 
 {{if .Prefix}}{{.Prefix}}{{end}}

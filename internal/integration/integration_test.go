@@ -8,11 +8,11 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/bigbes/lua-amalgamator/internal/config"
-	"github.com/bigbes/lua-amalgamator/internal/emit"
-	"github.com/bigbes/lua-amalgamator/internal/graph"
-	"github.com/bigbes/lua-amalgamator/internal/parse"
-	"github.com/bigbes/lua-amalgamator/internal/resolve"
+	"github.com/bigbes/lua-amalgamate/internal/config"
+	"github.com/bigbes/lua-amalgamate/internal/emit"
+	"github.com/bigbes/lua-amalgamate/internal/graph"
+	"github.com/bigbes/lua-amalgamate/internal/parse"
+	"github.com/bigbes/lua-amalgamate/internal/resolve"
 )
 
 func findLua() string {

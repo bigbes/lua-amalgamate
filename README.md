@@ -58,10 +58,18 @@ search:
   - lib/
   - vendor/
 strict: false
+# prefix: ""   # optional Lua code inserted before modules
+# suffix: ""   # optional Lua code appended after entry require
+# package_name: ""   # convenience: sets both strip_prefix and package_prefix
+# strip_prefix: ""   # strip prefix from module names during resolution
+# package_prefix: "" # add prefix to module names in output
+# skip_packages: []  # patterns to exclude
+# include_packages: [] # exact module names to include
 transform:
   remove_comments: true
   remove_empty_lines: true
   minify: false
+  strip_shebang: false
 ```
 
 All CLI flags:
@@ -74,8 +82,8 @@ All CLI flags:
 | `--root` | Base directory for module resolution | directory of entry file |
 | `--path` | Lua path templates, semicolon‑separated | `?.lua;?/init.lua` |
 | `--search` | Additional search directory (repeatable) | – |
-| `--skip` | Skip package (pattern, repeatable) | – |
-| `--include` | Include package (exact name, repeatable) | – |
+| `--skip` | Skip package (pattern, repeatable; exact match or suffix `.*` for prefix matching) | – |
+| `--include` | Include package (exact name only, repeatable) | – |
 | `--strict` | Treat unresolved requires as errors | `false` |
 | `--remove‑comments` | Strip Lua comments from output | `false` |
 | `--remove‑empty‑lines` | Strip empty lines from output | `false` |
@@ -116,6 +124,8 @@ For library projects where modules are named with a package prefix (e.g., `mypkg
 -- Amalgamated by amalg
 -- Entry: main
 
+-- Prefix code (if any) inserted here
+
 package.preload["foo.bar"] = function(...)
   -- original module source
 end
@@ -125,6 +135,8 @@ package.preload["main"] = function(...)
 end
 
 require("main")
+
+-- Suffix code (if any) inserted here
 ```
 
 ## Limitations (v1)

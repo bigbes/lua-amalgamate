@@ -6,31 +6,34 @@ import (
 	"path/filepath"
 	"strings"
 
-	"gopkg.in/yaml.v3"
+	"github.com/knadh/koanf/parsers/yaml"
+	"github.com/knadh/koanf/providers/env"
+	"github.com/knadh/koanf/providers/file"
+	koanf "github.com/knadh/koanf/v2"
 )
 
 type TransformConfig struct {
-	RemoveComments   bool `yaml:"remove_comments"`
-	RemoveEmptyLines bool `yaml:"remove_empty_lines"`
-	Minify           bool `yaml:"minify"`
-	StripShebang     bool `yaml:"strip_shebang"`
+	RemoveComments   bool `yaml:"remove_comments" mapstructure:"remove_comments" koanf:"remove_comments"`
+	RemoveEmptyLines bool `yaml:"remove_empty_lines" mapstructure:"remove_empty_lines" koanf:"remove_empty_lines"`
+	Minify           bool `yaml:"minify" mapstructure:"minify" koanf:"minify"`
+	StripShebang     bool `yaml:"strip_shebang" mapstructure:"strip_shebang" koanf:"strip_shebang"`
 }
 
 type Config struct {
-	Entry           string          `yaml:"entry"`
-	Output          string          `yaml:"output"`
-	Root            string          `yaml:"root"`
-	Path            string          `yaml:"path"`
-	Search          []string        `yaml:"search"`
-	Strict          bool            `yaml:"strict"`
-	Transform       TransformConfig `yaml:"transform"`
-	Prefix          string          `yaml:"prefix"`
-	Suffix          string          `yaml:"suffix"`
-	PackagePrefix   string          `yaml:"package_prefix"`
-	PackageName     string          `yaml:"package_name"`
-	StripPrefix     string          `yaml:"strip_prefix"`
-	SkipPackages    []string        `yaml:"skip_packages"`
-	IncludePackages []string        `yaml:"include_packages"`
+	Entry           string          `yaml:"entry" mapstructure:"entry" koanf:"entry"`
+	Output          string          `yaml:"output" mapstructure:"output" koanf:"output"`
+	Root            string          `yaml:"root" mapstructure:"root" koanf:"root"`
+	Path            string          `yaml:"path" mapstructure:"path" koanf:"path"`
+	Search          []string        `yaml:"search" mapstructure:"search" koanf:"search"`
+	Strict          bool            `yaml:"strict" mapstructure:"strict" koanf:"strict"`
+	Transform       TransformConfig `yaml:"transform" mapstructure:"transform" koanf:"transform"`
+	Prefix          string          `yaml:"prefix" mapstructure:"prefix" koanf:"prefix"`
+	Suffix          string          `yaml:"suffix" mapstructure:"suffix" koanf:"suffix"`
+	PackagePrefix   string          `yaml:"package_prefix" mapstructure:"package_prefix" koanf:"package_prefix"`
+	PackageName     string          `yaml:"package_name" mapstructure:"package_name" koanf:"package_name"`
+	StripPrefix     string          `yaml:"strip_prefix" mapstructure:"strip_prefix" koanf:"strip_prefix"`
+	SkipPackages    []string        `yaml:"skip_packages" mapstructure:"skip_packages" koanf:"skip_packages"`
+	IncludePackages []string        `yaml:"include_packages" mapstructure:"include_packages" koanf:"include_packages"`
 }
 
 func Default() Config {
@@ -56,91 +59,67 @@ func Default() Config {
 }
 
 func LoadConfig(configPath string) (Config, error) {
-	cfg := Default()
-
 	if configPath == "" {
 		configPath = "amalg.yaml"
 	}
 
-	data, err := os.ReadFile(configPath)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return cfg, nil
+	k := koanf.New(".")
+
+	// Set defaults
+	defaultCfg := Default()
+	k.Set("entry", defaultCfg.Entry)
+	k.Set("output", defaultCfg.Output)
+	k.Set("root", defaultCfg.Root)
+	k.Set("path", defaultCfg.Path)
+	k.Set("search", defaultCfg.Search)
+	k.Set("strict", defaultCfg.Strict)
+	k.Set("transform.remove_comments", defaultCfg.Transform.RemoveComments)
+	k.Set("transform.remove_empty_lines", defaultCfg.Transform.RemoveEmptyLines)
+	k.Set("transform.minify", defaultCfg.Transform.Minify)
+	k.Set("transform.strip_shebang", defaultCfg.Transform.StripShebang)
+	k.Set("prefix", defaultCfg.Prefix)
+	k.Set("suffix", defaultCfg.Suffix)
+	k.Set("package_prefix", defaultCfg.PackagePrefix)
+	k.Set("package_name", defaultCfg.PackageName)
+	k.Set("strip_prefix", defaultCfg.StripPrefix)
+	k.Set("skip_packages", defaultCfg.SkipPackages)
+	k.Set("include_packages", defaultCfg.IncludePackages)
+
+	// Load YAML config file if exists
+	if err := k.Load(file.Provider(configPath), yaml.Parser()); err != nil {
+		if !os.IsNotExist(err) {
+			return Config{}, fmt.Errorf("load config file %q: %w", configPath, err)
 		}
-		return Config{}, fmt.Errorf("read config file %q: %w", configPath, err)
+		// File doesn't exist, continue with defaults
 	}
 
-	var yamlCfg Config
-	if err := yaml.Unmarshal(data, &yamlCfg); err != nil {
-		return Config{}, fmt.Errorf("parse config file %q: %w", configPath, err)
+	// Load environment variables
+	if err := k.Load(env.Provider("AMALG_", ".", func(s string) string {
+		// Convert AMALG_ENTRY to entry, AMALG_TRANSFORM_REMOVE_COMMENTS to transform.remove_comments
+		s = strings.TrimPrefix(s, "AMALG_")
+		s = strings.ToLower(s)
+		s = strings.ReplaceAll(s, "_", ".")
+		return s
+	}), nil); err != nil {
+		return Config{}, fmt.Errorf("load environment: %w", err)
 	}
 
-	mergeConfig(&cfg, yamlCfg)
+	var cfg Config
+	if err := k.Unmarshal("", &cfg); err != nil {
+		return Config{}, fmt.Errorf("unmarshal config: %w", err)
+	}
+
+	// Apply package_name convenience
+	if cfg.PackageName != "" {
+		if cfg.StripPrefix == "" {
+			cfg.StripPrefix = cfg.PackageName
+		}
+		if cfg.PackagePrefix == "" {
+			cfg.PackagePrefix = cfg.PackageName
+		}
+	}
+
 	return cfg, nil
-}
-
-func mergeConfig(dst *Config, src Config) {
-	if src.Entry != "" {
-		dst.Entry = src.Entry
-	}
-	if src.Output != "" {
-		dst.Output = src.Output
-	}
-	if src.Root != "" {
-		dst.Root = src.Root
-	}
-	if src.Path != "" {
-		dst.Path = src.Path
-	}
-	if len(src.Search) > 0 {
-		dst.Search = src.Search
-	}
-	if src.Strict {
-		dst.Strict = src.Strict
-	}
-	if src.Prefix != "" {
-		dst.Prefix = src.Prefix
-	}
-	if src.Suffix != "" {
-		dst.Suffix = src.Suffix
-	}
-	if src.PackagePrefix != "" {
-		dst.PackagePrefix = src.PackagePrefix
-	}
-	if src.PackageName != "" {
-		dst.PackageName = src.PackageName
-	}
-	if src.StripPrefix != "" {
-		dst.StripPrefix = src.StripPrefix
-	}
-	if len(src.SkipPackages) > 0 {
-		dst.SkipPackages = src.SkipPackages
-	}
-	if len(src.IncludePackages) > 0 {
-		dst.IncludePackages = src.IncludePackages
-	}
-	if src.Transform.RemoveComments {
-		dst.Transform.RemoveComments = src.Transform.RemoveComments
-	}
-	if src.Transform.RemoveEmptyLines {
-		dst.Transform.RemoveEmptyLines = src.Transform.RemoveEmptyLines
-	}
-	if src.Transform.Minify {
-		dst.Transform.Minify = src.Transform.Minify
-	}
-	if src.Transform.StripShebang {
-		dst.Transform.StripShebang = src.Transform.StripShebang
-	}
-
-	// Apply package_name convenience: if set and strip_prefix/package_prefix not explicitly set, use it
-	if dst.PackageName != "" {
-		if dst.StripPrefix == "" {
-			dst.StripPrefix = dst.PackageName
-		}
-		if dst.PackagePrefix == "" {
-			dst.PackagePrefix = dst.PackageName
-		}
-	}
 }
 
 func (c *Config) ResolveRoot() error {

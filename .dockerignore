@@ -1,0 +1,28 @@
+# Ignore everything by default
+*
+
+# Except these files
+!Dockerfile
+!lua-amalgamate
+
+# But for building with goreleaser, the binary will be copied into context
+# We'll allow dist directory (where goreleaser puts binaries)
+!dist/
+
+# Go files and directories to ignore
+.git/
+.gitignore
+*.go
+go.mod
+go.sum
+cmd/
+internal/
+testdata/
+*.md
+*.yaml
+*.yml
+.dockerignore
+.goreleaser.yml
+.vscode/
+.idea/
+*.log

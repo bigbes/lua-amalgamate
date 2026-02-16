@@ -32,7 +32,6 @@ builds:
 archives:
   - id: lua-amalgamate
     formats:
-      - tar.gz
       - zip
     name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}"
     files:
@@ -42,6 +41,20 @@ archives:
 
 checksum:
   name_template: "checksums.txt"
+
+dockers_v2:
+  - images:
+      - "ghcr.io/bigbes/lua-amalgamate"
+    tags:
+      - "{{ .Version }}"
+      - "{{ if not .IsNightly }}latest{{ end }}"
+    labels:
+      "org.opencontainers.image.description": "Lua amalgamator – bundle multi‑file Lua projects into a single self‑contained .lua file"
+      "org.opencontainers.image.created": "{{.Date}}"
+      "org.opencontainers.image.name": "{{.ProjectName}}"
+      "org.opencontainers.image.revision": "{{.FullCommit}}"
+      "org.opencontainers.image.version": "{{.Version}}"
+      "org.opencontainers.image.source": "{{.GitURL}}"
 
 snapshot:
   version_template: "{{ incpatch .Version }}-next"

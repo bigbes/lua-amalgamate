@@ -18,6 +18,12 @@ Instead of inlining module source at call sites, amalgamator registers each modu
 go install github.com/bigbes/lua-amalgamate/cmd/lua-amalgamate@latest
 ```
 
+Or using Docker:
+
+```bash
+docker pull ghcr.io/bigbes/lua-amalgamate:latest
+```
+
 Or build from source:
 
 ```bash

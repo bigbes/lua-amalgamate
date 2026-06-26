@@ -7,6 +7,8 @@ import (
 
 	"github.com/bigbes/lua-amalgamate/internal/graph"
 	"github.com/bigbes/lua-amalgamate/internal/parse"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestEmitSingleModule(t *testing.T) {
@@ -40,9 +42,7 @@ func TestEmitSingleModule(t *testing.T) {
 	}
 
 	var buf bytes.Buffer
-	if err := Emit(&buf, g, nil, Options{}); err != nil {
-		t.Fatalf("Emit() error = %v", err)
-	}
+	require.NoError(t, Emit(&buf, g, nil, Options{}))
 
 	output := buf.String()
 	expectedLines := []string{
@@ -54,9 +54,7 @@ func TestEmitSingleModule(t *testing.T) {
 		"require(\"main\")",
 	}
 	for _, line := range expectedLines {
-		if !strings.Contains(output, line) {
-			t.Errorf("Output missing line %q", line)
-		}
+		assert.Contains(t, output, line, "Output missing line %q", line)
 	}
 }
 
@@ -105,21 +103,13 @@ func TestEmitMultiModule(t *testing.T) {
 	}
 
 	var buf bytes.Buffer
-	if err := Emit(&buf, g, nil, Options{}); err != nil {
-		t.Fatalf("Emit() error = %v", err)
-	}
+	require.NoError(t, Emit(&buf, g, nil, Options{}))
 
 	output := buf.String()
 	// Should contain both modules
-	if !strings.Contains(output, "package.preload[\"main\"]") {
-		t.Error("Output missing main module")
-	}
-	if !strings.Contains(output, "package.preload[\"a\"]") {
-		t.Error("Output missing a module")
-	}
-	if !strings.Contains(output, "require(\"main\")") {
-		t.Error("Output missing entry require")
-	}
+	assert.Contains(t, output, "package.preload[\"main\"]", "Output missing main module")
+	assert.Contains(t, output, "package.preload[\"a\"]", "Output missing a module")
+	assert.Contains(t, output, "require(\"main\")", "Output missing entry require")
 }
 
 func TestEmitModuleWithAliases(t *testing.T) {
@@ -153,22 +143,14 @@ func TestEmitModuleWithAliases(t *testing.T) {
 	}
 
 	var buf bytes.Buffer
-	if err := Emit(&buf, g, nil, Options{}); err != nil {
-		t.Fatalf("Emit() error = %v", err)
-	}
+	require.NoError(t, Emit(&buf, g, nil, Options{}))
 
 	output := buf.String()
 	// Primary name carries the real loader; aliases delegate to it so the
 	// module body runs exactly once regardless of which name is required.
-	if !strings.Contains(output, "package.preload[\"foo\"] = function(...)") {
-		t.Error("Output missing primary loader for foo")
-	}
-	if !strings.Contains(output, "package.preload[\"foo.bar\"] = function(...) return require(\"foo\") end") {
-		t.Error("Output missing delegating alias foo.bar")
-	}
-	if !strings.Contains(output, "package.preload[\"foo/bar\"] = function(...) return require(\"foo\") end") {
-		t.Error("Output missing delegating alias foo/bar")
-	}
+	assert.Contains(t, output, "package.preload[\"foo\"] = function(...)", "Output missing primary loader for foo")
+	assert.Contains(t, output, "package.preload[\"foo.bar\"] = function(...) return require(\"foo\") end", "Output missing delegating alias foo.bar")
+	assert.Contains(t, output, "package.preload[\"foo/bar\"] = function(...) return require(\"foo\") end", "Output missing delegating alias foo/bar")
 }
 
 func TestEmitSuffix(t *testing.T) {
@@ -203,18 +185,12 @@ func TestEmitSuffix(t *testing.T) {
 
 	var buf bytes.Buffer
 	suffixCode := "print('suffix')"
-	if err := Emit(&buf, g, nil, Options{Suffix: suffixCode}); err != nil {
-		t.Fatalf("Emit() error = %v", err)
-	}
+	require.NoError(t, Emit(&buf, g, nil, Options{Suffix: suffixCode}))
 
 	output := buf.String()
-	if !strings.Contains(output, "print('suffix')") {
-		t.Error("Output missing suffix code")
-	}
+	assert.Contains(t, output, "print('suffix')", "Output missing suffix code")
 	// Ensure suffix appears after require
 	requireIdx := strings.Index(output, "require(\"main\")")
 	suffixIdx := strings.Index(output, "print('suffix')")
-	if requireIdx == -1 || suffixIdx == -1 || suffixIdx < requireIdx {
-		t.Error("Suffix code should appear after require")
-	}
+	assert.False(t, requireIdx == -1 || suffixIdx == -1 || suffixIdx < requireIdx, "Suffix code should appear after require")
 }

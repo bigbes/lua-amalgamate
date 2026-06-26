@@ -8,6 +8,9 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
 	"github.com/bigbes/lua-amalgamate/internal/config"
 	"github.com/bigbes/lua-amalgamate/internal/emit"
 	"github.com/bigbes/lua-amalgamate/internal/graph"
@@ -41,9 +44,7 @@ func TestIntegration(t *testing.T) {
 	}
 
 	testDirs, err := filepath.Glob("../../testdata/*")
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 
 	skipDirs := map[string]bool{
 		"circular": true, // original fails with C stack overflow; amalgamator fixes circular deps
@@ -77,48 +78,33 @@ func runIntegrationTest(t *testing.T, luaPath, dir, entryPath string) {
 		Path:   "?.lua;?/init.lua",
 		Strict: false,
 	}
-	if err := cfg.ResolveRoot(); err != nil {
-		t.Fatalf("resolve root: %v", err)
-	}
+	require.NoError(t, cfg.ResolveRoot(), "resolve root")
 
 	parser := parse.New()
 	resolver := resolve.New(cfg.Root, nil, cfg.Path)
 	g, err := graph.Build(&cfg, parser, resolver)
-	if err != nil {
-		t.Fatalf("build graph: %v", err)
-	}
+	require.NoError(t, err, "build graph")
 
 	var buf bytes.Buffer
-	if err := emit.Emit(&buf, g, nil, emit.Options{}); err != nil {
-		t.Fatalf("emit: %v", err)
-	}
+	require.NoError(t, emit.Emit(&buf, g, nil, emit.Options{}), "emit")
 	bundle := buf.Bytes()
 
 	// Write bundle to temp file
 	tmpFile, err := os.CreateTemp("", "amalg-test-*.lua")
-	if err != nil {
-		t.Fatalf("create temp file: %v", err)
-	}
+	require.NoError(t, err, "create temp file")
 	defer os.Remove(tmpFile.Name())
 
-	if _, err := tmpFile.Write(bundle); err != nil {
-		t.Fatalf("write temp file: %v", err)
-	}
-	if err := tmpFile.Close(); err != nil {
-		t.Fatalf("close temp file: %v", err)
-	}
+	_, err = tmpFile.Write(bundle)
+	require.NoError(t, err, "write temp file")
+	require.NoError(t, tmpFile.Close(), "close temp file")
 
 	// Run bundle
 	bundleOut, bundleErr := runLua(t, luaPath, tmpFile.Name(), dir)
 
 	// Compare outputs
-	if origOut != bundleOut {
-		t.Errorf("output mismatch\noriginal output:\n%s\nbundle output:\n%s", origOut, bundleOut)
-	}
+	assert.Equal(t, origOut, bundleOut, "output mismatch\noriginal output:\n%s\nbundle output:\n%s", origOut, bundleOut)
 	// Compare errors: both empty or both non-empty
-	if (origErr == "") != (bundleErr == "") {
-		t.Errorf("error presence mismatch\noriginal error:\n%s\nbundle error:\n%s", origErr, bundleErr)
-	}
+	assert.Equal(t, origErr == "", bundleErr == "", "error presence mismatch\noriginal error:\n%s\nbundle error:\n%s", origErr, bundleErr)
 }
 
 // TestDebugTraceback verifies that --debug makes runtime errors report the
@@ -132,32 +118,20 @@ func TestDebugTraceback(t *testing.T) {
 	dir := t.TempDir()
 	mainPath := filepath.Join(dir, "main.lua")
 	boomPath := filepath.Join(dir, "boom.lua")
-	if err := os.WriteFile(mainPath, []byte("local m = require(\"boom\")\nm.go()\n"), 0o644); err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, os.WriteFile(mainPath, []byte("local m = require(\"boom\")\nm.go()\n"), 0o644))
 	// error() is on line 3 of boom.lua.
-	if err := os.WriteFile(boomPath, []byte("local M = {}\nfunction M.go()\n  error(\"kaboom\")\nend\nreturn M\n"), 0o644); err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, os.WriteFile(boomPath, []byte("local M = {}\nfunction M.go()\n  error(\"kaboom\")\nend\nreturn M\n"), 0o644))
 
 	cfg := config.Config{Entry: mainPath, Root: dir, Path: "?.lua;?/init.lua"}
-	if err := cfg.ResolveRoot(); err != nil {
-		t.Fatalf("resolve root: %v", err)
-	}
+	require.NoError(t, cfg.ResolveRoot(), "resolve root")
 	g, err := graph.Build(&cfg, parse.New(), resolve.New(cfg.Root, nil, cfg.Path))
-	if err != nil {
-		t.Fatalf("build graph: %v", err)
-	}
+	require.NoError(t, err, "build graph")
 
 	var buf bytes.Buffer
-	if err := emit.Emit(&buf, g, nil, emit.Options{Debug: true}); err != nil {
-		t.Fatalf("emit: %v", err)
-	}
+	require.NoError(t, emit.Emit(&buf, g, nil, emit.Options{Debug: true}), "emit")
 
 	bundlePath := filepath.Join(dir, "bundle.lua")
-	if err := os.WriteFile(bundlePath, buf.Bytes(), 0o644); err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, os.WriteFile(bundlePath, buf.Bytes(), 0o644))
 
 	_, stderr := runLua(t, luaPath, bundlePath, dir)
 	// The error origin (first line) must report the original module file:line,
@@ -169,12 +143,8 @@ func TestDebugTraceback(t *testing.T) {
 	// Lua truncates long chunk names (LUA_IDSIZE) with a leading "...", so match
 	// on the base name + line rather than the full temp path.
 	want := "boom.lua:3"
-	if !strings.Contains(errLine, want) {
-		t.Errorf("debug error should point at original file:line\nwant substring: %q\ngot first line: %q\nfull stderr:\n%s", want, errLine, stderr)
-	}
-	if strings.Contains(errLine, "bundle.lua:") {
-		t.Errorf("debug error should not originate from bundle.lua\ngot first line: %q", errLine)
-	}
+	assert.Contains(t, errLine, want, "debug error should point at original file:line\nwant substring: %q\ngot first line: %q\nfull stderr:\n%s", want, errLine, stderr)
+	assert.NotContains(t, errLine, "bundle.lua:", "debug error should not originate from bundle.lua\ngot first line: %q", errLine)
 }
 
 func runLua(t *testing.T, luaPath, scriptPath, workingDir string) (string, string) {

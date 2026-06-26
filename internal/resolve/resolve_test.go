@@ -4,6 +4,9 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestResolver(t *testing.T) {
@@ -11,26 +14,16 @@ func TestResolver(t *testing.T) {
 
 	// Create directory structure
 	luaDir := filepath.Join(tmpDir, "lua")
-	if err := os.MkdirAll(luaDir, 0755); err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, os.MkdirAll(luaDir, 0755))
 	libDir := filepath.Join(tmpDir, "lib")
-	if err := os.MkdirAll(libDir, 0755); err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, os.MkdirAll(libDir, 0755))
 
 	// Write test Lua files
 	fooPath := filepath.Join(luaDir, "foo.lua")
-	if err := os.WriteFile(fooPath, []byte("-- foo"), 0644); err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, os.WriteFile(fooPath, []byte("-- foo"), 0644))
 	barInitPath := filepath.Join(libDir, "bar", "init.lua")
-	if err := os.MkdirAll(filepath.Dir(barInitPath), 0755); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(barInitPath, []byte("-- bar"), 0644); err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, os.MkdirAll(filepath.Dir(barInitPath), 0755))
+	require.NoError(t, os.WriteFile(barInitPath, []byte("-- bar"), 0644))
 
 	resolver := New(luaDir, []string{libDir}, "?.lua;?/init.lua")
 
@@ -68,20 +61,12 @@ func TestResolver(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			result, err := resolver.Resolve(tt.require, tt.fromDir)
 			if tt.wantPath == "" {
-				if err == nil {
-					t.Errorf("Resolve() expected error, got result %v", result)
-				}
+				assert.Error(t, err, "Resolve() expected error, got result %v", result)
 				return
 			}
-			if err != nil {
-				t.Fatalf("Resolve() error = %v", err)
-			}
-			if result.FilePath != tt.wantPath {
-				t.Errorf("Resolve() FilePath = %v, want %v", result.FilePath, tt.wantPath)
-			}
-			if result.ModName != tt.wantName {
-				t.Errorf("Resolve() ModName = %v, want %v", result.ModName, tt.wantName)
-			}
+			require.NoError(t, err)
+			assert.Equal(t, tt.wantPath, result.FilePath)
+			assert.Equal(t, tt.wantName, result.ModName)
 		})
 	}
 }
@@ -102,9 +87,7 @@ func TestNormalizeRequireName(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.input, func(t *testing.T) {
 			got := NormalizeRequireName(tt.input)
-			if got != tt.expected {
-				t.Errorf("NormalizeRequireName(%q) = %q, want %q", tt.input, got, tt.expected)
-			}
+			assert.Equal(t, tt.expected, got)
 		})
 	}
 }
@@ -114,21 +97,15 @@ func TestResolverWithPrefix(t *testing.T) {
 
 	// Create root directory with hyphenated name for auto-detection test
 	rootDir := filepath.Join(tmpDir, "test-project")
-	if err := os.MkdirAll(rootDir, 0755); err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, os.MkdirAll(rootDir, 0755))
 
 	// Create lib directory inside root
 	libDir := filepath.Join(rootDir, "lib")
-	if err := os.MkdirAll(libDir, 0755); err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, os.MkdirAll(libDir, 0755))
 
 	// Write test Lua file: lib/tuple_config.lua
 	tupleConfigPath := filepath.Join(libDir, "tuple_config.lua")
-	if err := os.WriteFile(tupleConfigPath, []byte("-- tuple config"), 0644); err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, os.WriteFile(tupleConfigPath, []byte("-- tuple config"), 0644))
 
 	// Test with explicit strip prefix
 	resolver := NewWithPrefix(rootDir, []string{libDir}, "?.lua;?/init.lua", "tuple_diff")
@@ -167,20 +144,12 @@ func TestResolverWithPrefix(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			result, err := resolver.Resolve(tt.require, tt.fromDir)
 			if tt.wantPath == "" {
-				if err == nil {
-					t.Errorf("Resolve() expected error, got result %v", result)
-				}
+				assert.Error(t, err, "Resolve() expected error, got result %v", result)
 				return
 			}
-			if err != nil {
-				t.Fatalf("Resolve() error = %v", err)
-			}
-			if result.FilePath != tt.wantPath {
-				t.Errorf("Resolve() FilePath = %v, want %v", result.FilePath, tt.wantPath)
-			}
-			if result.ModName != tt.wantName {
-				t.Errorf("Resolve() ModName = %v, want %v", result.ModName, tt.wantName)
-			}
+			require.NoError(t, err)
+			assert.Equal(t, tt.wantPath, result.FilePath)
+			assert.Equal(t, tt.wantName, result.ModName)
 		})
 	}
 }

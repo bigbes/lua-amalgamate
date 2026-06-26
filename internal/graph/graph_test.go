@@ -9,6 +9,8 @@ import (
 	"github.com/bigbes/lua-amalgamate/internal/config"
 	"github.com/bigbes/lua-amalgamate/internal/parse"
 	"github.com/bigbes/lua-amalgamate/internal/resolve"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestGraphLinearDependency(t *testing.T) {
@@ -19,15 +21,9 @@ func TestGraphLinearDependency(t *testing.T) {
 	aContent := `require("b")`
 	bContent := `print("b")`
 
-	if err := os.WriteFile(filepath.Join(tmpDir, "main.lua"), []byte(mainContent), 0644); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(filepath.Join(tmpDir, "a.lua"), []byte(aContent), 0644); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(filepath.Join(tmpDir, "b.lua"), []byte(bContent), 0644); err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "main.lua"), []byte(mainContent), 0644))
+	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "a.lua"), []byte(aContent), 0644))
+	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "b.lua"), []byte(bContent), 0644))
 
 	cfg := config.Config{
 		Entry:  filepath.Join(tmpDir, "main.lua"),
@@ -39,21 +35,13 @@ func TestGraphLinearDependency(t *testing.T) {
 	parser := parse.New()
 	resolver := resolve.New(cfg.Root, nil, cfg.Path)
 	g, err := Build(&cfg, parser, resolver)
-	if err != nil {
-		t.Fatalf("Build() error = %v", err)
-	}
+	require.NoError(t, err, "Build() error")
 
-	if g.Entry == nil {
-		t.Fatal("Build() Entry is nil")
-	}
-	if g.Entry.FilePath != filepath.Join(tmpDir, "main.lua") {
-		t.Errorf("Entry FilePath = %v, want %v", g.Entry.FilePath, filepath.Join(tmpDir, "main.lua"))
-	}
+	require.NotNil(t, g.Entry, "Build() Entry is nil")
+	assert.Equal(t, filepath.Join(tmpDir, "main.lua"), g.Entry.FilePath, "Entry FilePath")
 
 	// Should have 3 modules
-	if len(g.Modules) != 3 {
-		t.Errorf("len(g.Modules) = %d, want 3", len(g.Modules))
-	}
+	assert.Len(t, g.Modules, 3, "len(g.Modules)")
 
 	// Check module names
 	modulesByPath := make(map[string]*Module)
@@ -65,20 +53,16 @@ func TestGraphLinearDependency(t *testing.T) {
 	aMod := modulesByPath[filepath.Join(tmpDir, "a.lua")]
 	bMod := modulesByPath[filepath.Join(tmpDir, "b.lua")]
 
-	if mainMod == nil || aMod == nil || bMod == nil {
-		t.Fatal("Some modules missing")
-	}
+	require.NotNil(t, mainMod, "Some modules missing")
+	require.NotNil(t, aMod, "Some modules missing")
+	require.NotNil(t, bMod, "Some modules missing")
 
 	// Check requires
-	if len(mainMod.Requires) != 1 || mainMod.Requires[0].Name != "a" {
-		t.Errorf("main.Requires = %v, want [{a}]", mainMod.Requires)
-	}
-	if len(aMod.Requires) != 1 || aMod.Requires[0].Name != "b" {
-		t.Errorf("a.Requires = %v, want [{b}]", aMod.Requires)
-	}
-	if len(bMod.Requires) != 0 {
-		t.Errorf("b.Requires = %v, want []", bMod.Requires)
-	}
+	require.Len(t, mainMod.Requires, 1, "main.Requires")
+	assert.Equal(t, "a", mainMod.Requires[0].Name, "main.Requires[0].Name")
+	require.Len(t, aMod.Requires, 1, "a.Requires")
+	assert.Equal(t, "b", aMod.Requires[0].Name, "a.Requires[0].Name")
+	assert.Len(t, bMod.Requires, 0, "b.Requires")
 }
 
 func TestGraphCircularDependency(t *testing.T) {
@@ -88,12 +72,8 @@ func TestGraphCircularDependency(t *testing.T) {
 	aContent := `require("b")`
 	bContent := `require("a")`
 
-	if err := os.WriteFile(filepath.Join(tmpDir, "a.lua"), []byte(aContent), 0644); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(filepath.Join(tmpDir, "b.lua"), []byte(bContent), 0644); err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "a.lua"), []byte(aContent), 0644))
+	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "b.lua"), []byte(bContent), 0644))
 
 	cfg := config.Config{
 		Entry:  filepath.Join(tmpDir, "a.lua"),
@@ -105,23 +85,17 @@ func TestGraphCircularDependency(t *testing.T) {
 	parser := parse.New()
 	resolver := resolve.New(cfg.Root, nil, cfg.Path)
 	g, err := Build(&cfg, parser, resolver)
-	if err != nil {
-		t.Fatalf("Build() error = %v", err)
-	}
+	require.NoError(t, err, "Build() error")
 
 	// Should have 2 modules (circular is fine)
-	if len(g.Modules) != 2 {
-		t.Errorf("len(g.Modules) = %d, want 2", len(g.Modules))
-	}
+	assert.Len(t, g.Modules, 2, "len(g.Modules)")
 }
 
 func TestGraphDynamicRequireWarning(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	content := `local mod = "a"; require(mod)`
-	if err := os.WriteFile(filepath.Join(tmpDir, "main.lua"), []byte(content), 0644); err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "main.lua"), []byte(content), 0644))
 
 	cfg := config.Config{
 		Entry:  filepath.Join(tmpDir, "main.lua"),
@@ -133,23 +107,17 @@ func TestGraphDynamicRequireWarning(t *testing.T) {
 	parser := parse.New()
 	resolver := resolve.New(cfg.Root, nil, cfg.Path)
 	g, err := Build(&cfg, parser, resolver)
-	if err != nil {
-		t.Fatalf("Build() error = %v", err)
-	}
+	require.NoError(t, err, "Build() error")
 
 	// Should have warning about dynamic require
-	if len(g.Warnings) != 1 {
-		t.Errorf("len(g.Warnings) = %d, want 1", len(g.Warnings))
-	}
+	assert.Len(t, g.Warnings, 1, "len(g.Warnings)")
 }
 
 func TestGraphStrictModeError(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	content := `require("nonexistent")`
-	if err := os.WriteFile(filepath.Join(tmpDir, "main.lua"), []byte(content), 0644); err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "main.lua"), []byte(content), 0644))
 
 	cfg := config.Config{
 		Entry:  filepath.Join(tmpDir, "main.lua"),
@@ -161,9 +129,7 @@ func TestGraphStrictModeError(t *testing.T) {
 	parser := parse.New()
 	resolver := resolve.New(cfg.Root, nil, cfg.Path)
 	_, err := Build(&cfg, parser, resolver)
-	if err == nil {
-		t.Fatal("Build() expected error for unresolved require in strict mode")
-	}
+	require.Error(t, err, "Build() expected error for unresolved require in strict mode")
 }
 
 func TestGraphPackagePrefix(t *testing.T) {
@@ -172,12 +138,8 @@ func TestGraphPackagePrefix(t *testing.T) {
 	// Create Lua files: main.lua -> a.lua
 	mainContent := `require("a")`
 	aContent := `return {}`
-	if err := os.WriteFile(filepath.Join(tmpDir, "main.lua"), []byte(mainContent), 0644); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(filepath.Join(tmpDir, "a.lua"), []byte(aContent), 0644); err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "main.lua"), []byte(mainContent), 0644))
+	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "a.lua"), []byte(aContent), 0644))
 
 	cfg := config.Config{
 		Entry:         filepath.Join(tmpDir, "main.lua"),
@@ -190,26 +152,18 @@ func TestGraphPackagePrefix(t *testing.T) {
 	parser := parse.New()
 	resolver := resolve.New(cfg.Root, nil, cfg.Path)
 	g, err := Build(&cfg, parser, resolver)
-	if err != nil {
-		t.Fatalf("Build() error = %v", err)
-	}
+	require.NoError(t, err, "Build() error")
 
 	// Should have 2 modules
-	if len(g.Modules) != 2 {
-		t.Errorf("len(g.Modules) = %d, want 2", len(g.Modules))
-	}
+	assert.Len(t, g.Modules, 2, "len(g.Modules)")
 
 	// Check module names
 	for _, mod := range g.Modules {
 		// Each module should have at least 2 names (original and prefixed)
-		if len(mod.Names) < 2 {
-			t.Errorf("module %v has only %d names, want at least 2", mod.FilePath, len(mod.Names))
-		}
+		assert.GreaterOrEqual(t, len(mod.Names), 2, "module %v has too few names", mod.FilePath)
 		// First name for entry should be prefixed
 		if mod == g.Entry {
-			if !strings.HasPrefix(mod.Names[0], "mypkg.") {
-				t.Errorf("entry module first name = %q, want prefixed with 'mypkg.'", mod.Names[0])
-			}
+			assert.True(t, strings.HasPrefix(mod.Names[0], "mypkg."), "entry module first name = %q, want prefixed with 'mypkg.'", mod.Names[0])
 		}
 		// Check that both original and prefixed names exist
 		hasOriginal := false
@@ -222,12 +176,8 @@ func TestGraphPackagePrefix(t *testing.T) {
 				hasPrefixed = true
 			}
 		}
-		if !hasOriginal {
-			t.Errorf("module missing original name")
-		}
-		if !hasPrefixed {
-			t.Errorf("module missing prefixed name")
-		}
+		assert.True(t, hasOriginal, "module missing original name")
+		assert.True(t, hasPrefixed, "module missing prefixed name")
 	}
 }
 
@@ -237,12 +187,8 @@ func TestGraphSkipPackages(t *testing.T) {
 	// Create Lua files: main.lua -> a.lua, but a.lua is skipped
 	mainContent := `require("a")`
 	aContent := `return {}`
-	if err := os.WriteFile(filepath.Join(tmpDir, "main.lua"), []byte(mainContent), 0644); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(filepath.Join(tmpDir, "a.lua"), []byte(aContent), 0644); err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "main.lua"), []byte(mainContent), 0644))
+	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "a.lua"), []byte(aContent), 0644))
 
 	cfg := config.Config{
 		Entry:        filepath.Join(tmpDir, "main.lua"),
@@ -255,17 +201,11 @@ func TestGraphSkipPackages(t *testing.T) {
 	parser := parse.New()
 	resolver := resolve.New(cfg.Root, nil, cfg.Path)
 	g, err := Build(&cfg, parser, resolver)
-	if err != nil {
-		t.Fatalf("Build() error = %v", err)
-	}
+	require.NoError(t, err, "Build() error")
 
 	// Should have only 1 module (main)
-	if len(g.Modules) != 1 {
-		t.Errorf("len(g.Modules) = %d, want 1", len(g.Modules))
-	}
-	if g.Modules[0] != g.Entry {
-		t.Error("only module should be entry")
-	}
+	require.Len(t, g.Modules, 1, "len(g.Modules)")
+	assert.Same(t, g.Entry, g.Modules[0], "only module should be entry")
 	// Should have a warning about skipped package
 	foundSkipWarning := false
 	for _, w := range g.Warnings {
@@ -274,9 +214,7 @@ func TestGraphSkipPackages(t *testing.T) {
 			break
 		}
 	}
-	if !foundSkipWarning {
-		t.Error("expected skip warning not found")
-	}
+	assert.True(t, foundSkipWarning, "expected skip warning not found")
 }
 
 func TestGraphIncludePackages(t *testing.T) {
@@ -286,15 +224,9 @@ func TestGraphIncludePackages(t *testing.T) {
 	mainContent := `print("main")`
 	aContent := `require("b")`
 	bContent := `print("b")`
-	if err := os.WriteFile(filepath.Join(tmpDir, "main.lua"), []byte(mainContent), 0644); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(filepath.Join(tmpDir, "a.lua"), []byte(aContent), 0644); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(filepath.Join(tmpDir, "b.lua"), []byte(bContent), 0644); err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "main.lua"), []byte(mainContent), 0644))
+	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "a.lua"), []byte(aContent), 0644))
+	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "b.lua"), []byte(bContent), 0644))
 
 	cfg := config.Config{
 		Entry:           filepath.Join(tmpDir, "main.lua"),
@@ -307,14 +239,10 @@ func TestGraphIncludePackages(t *testing.T) {
 	parser := parse.New()
 	resolver := resolve.New(cfg.Root, nil, cfg.Path)
 	g, err := Build(&cfg, parser, resolver)
-	if err != nil {
-		t.Fatalf("Build() error = %v", err)
-	}
+	require.NoError(t, err, "Build() error")
 
 	// Should have 3 modules (main, a, b) because a includes b
-	if len(g.Modules) != 3 {
-		t.Errorf("len(g.Modules) = %d, want 3", len(g.Modules))
-	}
+	assert.Len(t, g.Modules, 3, "len(g.Modules)")
 	// Check that a and b are present
 	foundA := false
 	foundB := false
@@ -327,12 +255,8 @@ func TestGraphIncludePackages(t *testing.T) {
 			foundB = true
 		}
 	}
-	if !foundA {
-		t.Error("module a.lua not found in graph")
-	}
-	if !foundB {
-		t.Error("module b.lua not found in graph")
-	}
+	assert.True(t, foundA, "module a.lua not found in graph")
+	assert.True(t, foundB, "module b.lua not found in graph")
 }
 
 func TestGraphIncludeSkipConflict(t *testing.T) {
@@ -340,12 +264,8 @@ func TestGraphIncludeSkipConflict(t *testing.T) {
 
 	mainContent := `print("main")`
 	aContent := `print("a")`
-	if err := os.WriteFile(filepath.Join(tmpDir, "main.lua"), []byte(mainContent), 0644); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(filepath.Join(tmpDir, "a.lua"), []byte(aContent), 0644); err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "main.lua"), []byte(mainContent), 0644))
+	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "a.lua"), []byte(aContent), 0644))
 
 	cfg := config.Config{
 		Entry:           filepath.Join(tmpDir, "main.lua"),
@@ -359,14 +279,10 @@ func TestGraphIncludeSkipConflict(t *testing.T) {
 	parser := parse.New()
 	resolver := resolve.New(cfg.Root, nil, cfg.Path)
 	g, err := Build(&cfg, parser, resolver)
-	if err != nil {
-		t.Fatalf("Build() error = %v", err)
-	}
+	require.NoError(t, err, "Build() error")
 
 	// Should have only 1 module (main) because skip takes precedence
-	if len(g.Modules) != 1 {
-		t.Errorf("len(g.Modules) = %d, want 1", len(g.Modules))
-	}
+	assert.Len(t, g.Modules, 1, "len(g.Modules)")
 	// Should have warning about skipped include
 	foundSkipWarning := false
 	for _, w := range g.Warnings {
@@ -375,7 +291,5 @@ func TestGraphIncludeSkipConflict(t *testing.T) {
 			break
 		}
 	}
-	if !foundSkipWarning {
-		t.Error("expected skip warning for include package not found")
-	}
+	assert.True(t, foundSkipWarning, "expected skip warning for include package not found")
 }

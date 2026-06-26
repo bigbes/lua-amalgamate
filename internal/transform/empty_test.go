@@ -2,6 +2,9 @@ package transform
 
 import (
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestEmptyLineTransformer(t *testing.T) {
@@ -46,12 +49,8 @@ func TestEmptyLineTransformer(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got, err := transformer.Transform([]byte(tt.input))
-			if err != nil {
-				t.Fatalf("Transform() error = %v", err)
-			}
-			if string(got) != tt.output {
-				t.Errorf("Transform() = %q, want %q", string(got), tt.output)
-			}
+			require.NoError(t, err, "Transform() error = %v", err)
+			assert.Equal(t, tt.output, string(got), "Transform() = %q, want %q", string(got), tt.output)
 		})
 	}
 }

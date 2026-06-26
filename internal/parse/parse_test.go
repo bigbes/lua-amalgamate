@@ -2,6 +2,9 @@ package parse
 
 import (
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestParseStaticRequire(t *testing.T) {
@@ -67,22 +70,12 @@ end`,
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got, err := parser.Parse([]byte(tt.source), "test.lua")
-			if err != nil {
-				t.Fatalf("Parse() error = %v", err)
-			}
-			if len(got) != len(tt.expected) {
-				t.Fatalf("Parse() got %d requires, want %d", len(got), len(tt.expected))
-			}
+			require.NoError(t, err, "Parse() error")
+			require.Len(t, got, len(tt.expected), "Parse() requires count")
 			for i := range got {
-				if got[i].Name != tt.expected[i].Name {
-					t.Errorf("require %d: got Name = %q, want %q", i, got[i].Name, tt.expected[i].Name)
-				}
-				if got[i].Line != tt.expected[i].Line {
-					t.Errorf("require %d: got Line = %d, want %d", i, got[i].Line, tt.expected[i].Line)
-				}
-				if got[i].Static != tt.expected[i].Static {
-					t.Errorf("require %d: got Static = %v, want %v", i, got[i].Static, tt.expected[i].Static)
-				}
+				assert.Equal(t, tt.expected[i].Name, got[i].Name, "require %d: Name", i)
+				assert.Equal(t, tt.expected[i].Line, got[i].Line, "require %d: Line", i)
+				assert.Equal(t, tt.expected[i].Static, got[i].Static, "require %d: Static", i)
 			}
 		})
 	}

@@ -147,6 +147,51 @@ func TestDebugTraceback(t *testing.T) {
 	assert.NotContains(t, errLine, "bundle.lua:", "debug error should not originate from bundle.lua\ngot first line: %q", errLine)
 }
 
+// TestFallbackOnDiskOverride verifies that in fallback mode an on-disk module
+// found on package.path takes precedence over the embedded copy, while a normal
+// bundle uses the embedded copy.
+func TestFallbackOnDiskOverride(t *testing.T) {
+	luaPath := findLua()
+	if luaPath == "" {
+		t.Skip("lua interpreter not found in PATH")
+	}
+
+	src := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(src, "main.lua"), []byte("local g = require(\"greet\")\nprint(g())\n"), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(src, "greet.lua"), []byte("return function() return \"EMBEDDED\" end\n"), 0o644))
+
+	cfg := config.Config{Entry: filepath.Join(src, "main.lua"), Root: src, Path: "?.lua;?/init.lua"}
+	require.NoError(t, cfg.ResolveRoot())
+	g, err := graph.Build(&cfg, parse.New(), resolve.New(cfg.Root, nil, cfg.Path))
+	require.NoError(t, err, "build graph")
+
+	emitBundle := func(opts emit.Options) string {
+		var buf bytes.Buffer
+		require.NoError(t, emit.Emit(&buf, g, nil, opts), "emit")
+		return buf.String()
+	}
+
+	// Run directory holds an on-disk override of greet reachable via ./?.lua.
+	run := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(run, "greet.lua"), []byte("return function() return \"ON-DISK\" end\n"), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(run, "normal.lua"), []byte(emitBundle(emit.Options{})), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(run, "fallback.lua"), []byte(emitBundle(emit.Options{Fallback: true})), 0o644))
+
+	runWithPath := func(script string) string {
+		cmd := exec.Command(luaPath, script)
+		cmd.Dir = run
+		cmd.Env = append(os.Environ(), "LUA_PATH=./?.lua;;")
+		var stdout, stderr bytes.Buffer
+		cmd.Stdout = &stdout
+		cmd.Stderr = &stderr
+		require.NoError(t, cmd.Run(), "run %s: %s", script, stderr.String())
+		return strings.TrimSpace(stdout.String())
+	}
+
+	assert.Equal(t, "EMBEDDED", runWithPath("normal.lua"), "normal bundle should use the embedded module")
+	assert.Equal(t, "ON-DISK", runWithPath("fallback.lua"), "fallback bundle should prefer the on-disk module")
+}
+
 func runLua(t *testing.T, luaPath, scriptPath, workingDir string) (string, string) {
 	cmd := exec.Command(luaPath, scriptPath)
 	cmd.Dir = workingDir

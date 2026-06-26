@@ -194,3 +194,29 @@ func TestEmitSuffix(t *testing.T) {
 	suffixIdx := strings.Index(output, "print('suffix')")
 	assert.False(t, requireIdx == -1 || suffixIdx == -1 || suffixIdx < requireIdx, "Suffix code should appear after require")
 }
+
+func TestEmitFallback(t *testing.T) {
+	mod := &graph.Module{
+		ID:       0,
+		FilePath: "/test/main.lua",
+		Names:    []string{"main"},
+		Source:   []byte("print('hello')"),
+		Requires: []parse.RequireInfo{},
+	}
+	g := &graph.Graph{
+		Modules:  []*graph.Module{mod},
+		ByPath:   map[string]*graph.Module{"/test/main.lua": mod},
+		Entry:    mod,
+		Warnings: []graph.Warning{},
+	}
+
+	var buf bytes.Buffer
+	require.NoError(t, Emit(&buf, g, nil, Options{Fallback: true}))
+
+	output := buf.String()
+	// Fallback registers in package.postload behind an appended searcher, not
+	// in package.preload.
+	assert.Contains(t, output, "package.postload[\"main\"] = function(...)", "fallback should register in package.postload")
+	assert.Contains(t, output, "searchers[#searchers+1] = function(mod)", "fallback should append a searcher")
+	assert.NotContains(t, output, "package.preload[", "fallback should not use package.preload")
+}

@@ -13,21 +13,40 @@ import (
 // (LUA_COMPAT_VARARG) injects into vararg functions. `package.loaded[name]` is
 // set before the body runs to break circular requires. Aliases delegate to the
 // primary name so the body executes exactly once regardless of how it's required.
+//
+// By default loaders go into package.preload, which the built-in preload
+// searcher consults before searching package.path — so embedded modules win.
+// In fallback mode (.Fallback) loaders go into package.postload and a searcher
+// is appended last, so an on-disk copy on package.path takes precedence and the
+// embedded module is used only as a fallback.
 const templateText = `
 -- Amalgamated by lua-amalgamate
 -- Entry: {{.EntryName}}
 
 {{if .Prefix}}{{.Prefix}}{{end}}
+{{if .Fallback}}package.postload = package.postload or {}
+do
+  local postload = package.postload
+  local searchers = package.searchers or package.loaders
+  searchers[#searchers+1] = function(mod)
+    local loader = postload[mod]
+    if loader == nil then
+      return "\n\tno field package.postload['" .. mod .. "']"
+    end
+    return loader
+  end
+end
+{{end}}
 {{range .Modules}}{{$primary := .PrimaryName}}do
 local _ENV = _ENV
-package.preload[{{q $primary}}] = function(...)
+package.{{$.RegTable}}[{{q $primary}}] = function(...)
   local name = ...
   package.loaded[name] = true
   local arg = _G.arg
 {{if $.Debug}}  return assert((loadstring or load)({{bracket .Source}}, {{q (chunkname .Path)}}))(...)
 {{else}}{{indent .Source 2}}{{end}}end
 end
-{{range .AliasNames}}package.preload[{{q .}}] = function(...) return require({{q $primary}}) end
+{{range .AliasNames}}package.{{$.RegTable}}[{{q .}}] = function(...) return require({{q $primary}}) end
 {{end}}{{end}}return require({{q .EntryName}}){{if .Suffix}}
 {{.Suffix}}{{end}}
 `
@@ -113,6 +132,10 @@ type templateData struct {
 	Prefix    string
 	Suffix    string
 	Debug     bool
+	Fallback  bool
+	// RegTable is the package field loaders are registered in: "preload"
+	// normally, "postload" in fallback mode.
+	RegTable string
 }
 
 type moduleData struct {

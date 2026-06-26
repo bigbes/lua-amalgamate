@@ -20,6 +20,10 @@ type Options struct {
 	// report the original file name and line numbers instead of offsets into
 	// the bundle. The source is embedded verbatim (no reindentation).
 	Debug bool
+	// Fallback registers modules in package.postload behind an appended
+	// searcher instead of package.preload, so an on-disk copy on package.path
+	// takes precedence and the embedded module is only a fallback.
+	Fallback bool
 }
 
 func Emit(w io.Writer, g *graph.Graph, transforms []transform.Transformer, opts Options) error {
@@ -68,6 +72,10 @@ func Emit(w io.Writer, g *graph.Graph, transforms []transform.Transformer, opts 
 		moduleDataList = append(moduleDataList, data)
 	}
 
+	regTable := "preload"
+	if opts.Fallback {
+		regTable = "postload"
+	}
 	entryName := primaryName(g.Entry)
 	data := templateData{
 		EntryName: entryName,
@@ -75,6 +83,8 @@ func Emit(w io.Writer, g *graph.Graph, transforms []transform.Transformer, opts 
 		Prefix:    prefix,
 		Suffix:    suffix,
 		Debug:     opts.Debug,
+		Fallback:  opts.Fallback,
+		RegTable:  regTable,
 	}
 	return outputTemplate.Execute(w, data)
 }

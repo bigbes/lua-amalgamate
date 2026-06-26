@@ -27,6 +27,7 @@ type Config struct {
 	Search          []string        `yaml:"search" mapstructure:"search" koanf:"search"`
 	Strict          bool            `yaml:"strict" mapstructure:"strict" koanf:"strict"`
 	Debug           bool            `yaml:"debug" mapstructure:"debug" koanf:"debug"`
+	Fallback        bool            `yaml:"fallback" mapstructure:"fallback" koanf:"fallback"`
 	Transform       TransformConfig `yaml:"transform" mapstructure:"transform" koanf:"transform"`
 	Prefix          string          `yaml:"prefix" mapstructure:"prefix" koanf:"prefix"`
 	Suffix          string          `yaml:"suffix" mapstructure:"suffix" koanf:"suffix"`
@@ -39,11 +40,12 @@ type Config struct {
 
 func Default() Config {
 	return Config{
-		Output: "-",
-		Path:   "?.lua;?/init.lua",
-		Search: []string{},
-		Strict: false,
-		Debug:  false,
+		Output:   "-",
+		Path:     "?.lua;?/init.lua",
+		Search:   []string{},
+		Strict:   false,
+		Debug:    false,
+		Fallback: false,
 		Transform: TransformConfig{
 			RemoveComments:   false,
 			RemoveEmptyLines: false,
@@ -76,6 +78,7 @@ func LoadConfig(configPath string) (Config, error) {
 	k.Set("search", defaultCfg.Search)
 	k.Set("strict", defaultCfg.Strict)
 	k.Set("debug", defaultCfg.Debug)
+	k.Set("fallback", defaultCfg.Fallback)
 	k.Set("transform.remove_comments", defaultCfg.Transform.RemoveComments)
 	k.Set("transform.remove_empty_lines", defaultCfg.Transform.RemoveEmptyLines)
 	k.Set("transform.minify", defaultCfg.Transform.Minify)

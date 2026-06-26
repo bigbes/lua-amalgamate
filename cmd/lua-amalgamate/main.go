@@ -44,6 +44,7 @@ func main() {
 		minify           optionalBool
 		stripShebang     optionalBool
 		debug            optionalBool
+		fallback         optionalBool
 		prefix           string
 		suffix           string
 		packagePrefix    string
@@ -62,6 +63,7 @@ func main() {
 	pflag.Var(&include, "include", "Include package (exact name, repeatable)")
 	pflag.Var(&strict, "strict", "Treat unresolved requires as errors")
 	pflag.Var(&debug, "debug", "Load modules via load(src, '@file') so tracebacks keep original file:line")
+	pflag.Var(&fallback, "fallback", "Register modules in package.postload behind a searcher so on-disk modules take precedence")
 	pflag.Var(&removeComments, "remove-comments", "Strip Lua comments from output")
 	pflag.Var(&removeEmptyLines, "remove-empty-lines", "Strip empty lines from output")
 	pflag.Var(&minify, "minify", "Minify Lua source in output")
@@ -78,7 +80,7 @@ func main() {
 	// swallows the next token as the flag's value).
 	for _, name := range []string{
 		"strict", "remove-comments", "remove-empty-lines",
-		"minify", "strip-shebang", "debug",
+		"minify", "strip-shebang", "debug", "fallback",
 	} {
 		pflag.Lookup(name).NoOptDefVal = "true"
 	}
@@ -102,6 +104,7 @@ func main() {
 	k.Set("search", defaultCfg.Search)
 	k.Set("strict", defaultCfg.Strict)
 	k.Set("debug", defaultCfg.Debug)
+	k.Set("fallback", defaultCfg.Fallback)
 	k.Set("transform.remove_comments", defaultCfg.Transform.RemoveComments)
 	k.Set("transform.remove_empty_lines", defaultCfg.Transform.RemoveEmptyLines)
 	k.Set("transform.minify", defaultCfg.Transform.Minify)
@@ -157,6 +160,9 @@ func main() {
 	}
 	if debug.set {
 		cfg.Debug = debug.value
+	}
+	if fallback.set {
+		cfg.Fallback = fallback.value
 	}
 	if removeComments.set {
 		cfg.Transform.RemoveComments = removeComments.value
@@ -222,7 +228,7 @@ func main() {
 		out = f
 	}
 
-	emitOpts := emit.Options{Prefix: cfg.Prefix, Suffix: cfg.Suffix, Debug: cfg.Debug}
+	emitOpts := emit.Options{Prefix: cfg.Prefix, Suffix: cfg.Suffix, Debug: cfg.Debug, Fallback: cfg.Fallback}
 	if err := emit.Emit(out, g, transforms, emitOpts); err != nil {
 		fmt.Fprintf(os.Stderr, "error: emit: %v\n", err)
 		os.Exit(1)

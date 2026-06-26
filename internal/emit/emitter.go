@@ -20,8 +20,10 @@ func Emit(w io.Writer, g *graph.Graph, transforms []transform.Transformer, prefi
 		suffix = suffix + "\n"
 	}
 
-	// Sort modules by primary name
-	modules := g.Modules
+	// Sort modules by primary name. Copy the slice header first so we don't
+	// reorder the caller's graph as a side effect.
+	modules := make([]*graph.Module, len(g.Modules))
+	copy(modules, g.Modules)
 	sort.Slice(modules, func(i, j int) bool {
 		nameI := primaryName(modules[i])
 		nameJ := primaryName(modules[j])
@@ -40,11 +42,14 @@ func Emit(w io.Writer, g *graph.Graph, transforms []transform.Transformer, prefi
 			source = transformed
 		}
 
+		var aliases []string
+		if len(mod.Names) > 1 {
+			aliases = mod.Names[1:]
+		}
 		data := moduleData{
-			Names:       mod.Names,
-			Source:      string(source),
-			IsSingle:    len(mod.Names) == 1,
 			PrimaryName: primaryName(mod),
+			AliasNames:  aliases,
+			Source:      string(source),
 		}
 		moduleDataList = append(moduleDataList, data)
 	}

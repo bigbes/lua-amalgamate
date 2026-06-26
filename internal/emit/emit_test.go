@@ -158,18 +158,16 @@ func TestEmitModuleWithAliases(t *testing.T) {
 	}
 
 	output := buf.String()
-	// Should use multi-loader pattern (do block)
-	if !strings.Contains(output, "do") || !strings.Contains(output, "__loader") {
-		t.Error("Output should use multi-loader pattern for aliases")
+	// Primary name carries the real loader; aliases delegate to it so the
+	// module body runs exactly once regardless of which name is required.
+	if !strings.Contains(output, "package.preload[\"foo\"] = function(...)") {
+		t.Error("Output missing primary loader for foo")
 	}
-	if !strings.Contains(output, "package.preload[\"foo\"]") {
-		t.Error("Output missing alias foo")
+	if !strings.Contains(output, "package.preload[\"foo.bar\"] = function(...) return require(\"foo\") end") {
+		t.Error("Output missing delegating alias foo.bar")
 	}
-	if !strings.Contains(output, "package.preload[\"foo.bar\"]") {
-		t.Error("Output missing alias foo.bar")
-	}
-	if !strings.Contains(output, "package.preload[\"foo/bar\"]") {
-		t.Error("Output missing alias foo/bar")
+	if !strings.Contains(output, "package.preload[\"foo/bar\"] = function(...) return require(\"foo\") end") {
+		t.Error("Output missing delegating alias foo/bar")
 	}
 }
 

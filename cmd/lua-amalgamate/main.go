@@ -196,6 +196,19 @@ func main() {
 	if len(include) > 0 {
 		cfg.IncludePackages = include
 	}
+	// Likewise, these hyphenated flag names don't match their underscore koanf
+	// keys (strip_prefix / package_prefix / package_name), so posflag can't bind
+	// them. Apply explicitly when the flag was set. Must run before the
+	// package_name convenience below.
+	if pflag.CommandLine.Changed("strip-prefix") {
+		cfg.StripPrefix = stripPrefix
+	}
+	if pflag.CommandLine.Changed("package-prefix") {
+		cfg.PackagePrefix = packagePrefix
+	}
+	if pflag.CommandLine.Changed("package-name") {
+		cfg.PackageName = packageName
+	}
 
 	// Apply package_name convenience (already done in config.LoadConfig but we re-apply for CLI flags)
 	if cfg.PackageName != "" {

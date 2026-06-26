@@ -24,6 +24,9 @@ type Options struct {
 	// searcher instead of package.preload, so an on-disk copy on package.path
 	// takes precedence and the embedded module is only a fallback.
 	Fallback bool
+	// Shebang, when non-empty, is written as the first line of the bundle
+	// (e.g. "#!/usr/bin/env lua") so the output is directly executable.
+	Shebang string
 }
 
 func Emit(w io.Writer, g *graph.Graph, transforms []transform.Transformer, opts Options) error {
@@ -82,6 +85,7 @@ func Emit(w io.Writer, g *graph.Graph, transforms []transform.Transformer, opts 
 		Modules:   moduleDataList,
 		Prefix:    prefix,
 		Suffix:    suffix,
+		Shebang:   strings.TrimRight(opts.Shebang, "\n"),
 		Debug:     opts.Debug,
 		Fallback:  opts.Fallback,
 		RegTable:  regTable,

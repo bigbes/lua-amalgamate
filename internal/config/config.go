@@ -31,6 +31,7 @@ type Config struct {
 	Transform       TransformConfig `yaml:"transform" mapstructure:"transform" koanf:"transform"`
 	Prefix          string          `yaml:"prefix" mapstructure:"prefix" koanf:"prefix"`
 	Suffix          string          `yaml:"suffix" mapstructure:"suffix" koanf:"suffix"`
+	Shebang         string          `yaml:"shebang" mapstructure:"shebang" koanf:"shebang"`
 	PackagePrefix   string          `yaml:"package_prefix" mapstructure:"package_prefix" koanf:"package_prefix"`
 	PackageName     string          `yaml:"package_name" mapstructure:"package_name" koanf:"package_name"`
 	StripPrefix     string          `yaml:"strip_prefix" mapstructure:"strip_prefix" koanf:"strip_prefix"`
@@ -54,6 +55,7 @@ func Default() Config {
 		},
 		Prefix:          "",
 		Suffix:          "",
+		Shebang:         "",
 		PackagePrefix:   "",
 		PackageName:     "",
 		StripPrefix:     "",
@@ -85,6 +87,7 @@ func LoadConfig(configPath string) (Config, error) {
 	k.Set("transform.strip_shebang", defaultCfg.Transform.StripShebang)
 	k.Set("prefix", defaultCfg.Prefix)
 	k.Set("suffix", defaultCfg.Suffix)
+	k.Set("shebang", defaultCfg.Shebang)
 	k.Set("package_prefix", defaultCfg.PackagePrefix)
 	k.Set("package_name", defaultCfg.PackageName)
 	k.Set("strip_prefix", defaultCfg.StripPrefix)

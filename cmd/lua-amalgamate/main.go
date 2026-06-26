@@ -47,6 +47,7 @@ func main() {
 		fallback         optionalBool
 		prefix           string
 		suffix           string
+		shebang          string
 		packagePrefix    string
 		packageName      string
 		stripPrefix      string
@@ -70,6 +71,7 @@ func main() {
 	pflag.Var(&stripShebang, "strip-shebang", "Remove shebang line (#!/...) from Lua files")
 	pflag.StringVar(&prefix, "prefix", "", "Prefix Lua code inserted before modules")
 	pflag.StringVar(&suffix, "suffix", "", "Suffix Lua code appended after entry require")
+	pflag.StringVar(&shebang, "shebang", "", "Shebang line written as the first line of the bundle (e.g. '#!/usr/bin/env lua')")
 	pflag.StringVar(&packagePrefix, "package-prefix", "", "Prefix for all module names (e.g., 'mypkg' makes require('mypkg.module')")
 	pflag.StringVar(&packageName, "package-name", "", "Package name (sets both strip-prefix and package-prefix to this value)")
 	pflag.StringVar(&stripPrefix, "strip-prefix", "", "Strip prefix from module names (e.g., 'tuple_diff' makes require('tuple_diff.lib.foo') find 'lib/foo.lua')")
@@ -111,6 +113,7 @@ func main() {
 	k.Set("transform.strip_shebang", defaultCfg.Transform.StripShebang)
 	k.Set("prefix", defaultCfg.Prefix)
 	k.Set("suffix", defaultCfg.Suffix)
+	k.Set("shebang", defaultCfg.Shebang)
 	k.Set("package_prefix", defaultCfg.PackagePrefix)
 	k.Set("package_name", defaultCfg.PackageName)
 	k.Set("strip_prefix", defaultCfg.StripPrefix)
@@ -228,7 +231,7 @@ func main() {
 		out = f
 	}
 
-	emitOpts := emit.Options{Prefix: cfg.Prefix, Suffix: cfg.Suffix, Debug: cfg.Debug, Fallback: cfg.Fallback}
+	emitOpts := emit.Options{Prefix: cfg.Prefix, Suffix: cfg.Suffix, Shebang: cfg.Shebang, Debug: cfg.Debug, Fallback: cfg.Fallback}
 	if err := emit.Emit(out, g, transforms, emitOpts); err != nil {
 		fmt.Fprintf(os.Stderr, "error: emit: %v\n", err)
 		os.Exit(1)

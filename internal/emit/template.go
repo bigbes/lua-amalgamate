@@ -19,12 +19,12 @@ import (
 // In fallback mode (.Fallback) loaders go into package.postload and a searcher
 // is appended last, so an on-disk copy on package.path takes precedence and the
 // embedded module is used only as a fallback.
-const templateText = `
--- Amalgamated by lua-amalgamate
+const templateText = `{{if .Shebang}}{{.Shebang}}
+{{end}}-- Amalgamated by lua-amalgamate
 -- Entry: {{.EntryName}}
 
-{{if .Prefix}}{{.Prefix}}{{end}}
-{{if .Fallback}}package.postload = package.postload or {}
+{{if .Prefix}}{{.Prefix}}
+{{end}}{{if .Fallback}}package.postload = package.postload or {}
 do
   local postload = package.postload
   local searchers = package.searchers or package.loaders
@@ -36,8 +36,8 @@ do
     return loader
   end
 end
-{{end}}
-{{range .Modules}}{{$primary := .PrimaryName}}do
+
+{{end}}{{range .Modules}}{{$primary := .PrimaryName}}do
 local _ENV = _ENV
 package.{{$.RegTable}}[{{q $primary}}] = function(...)
   local name = ...
@@ -131,6 +131,7 @@ type templateData struct {
 	Modules   []moduleData
 	Prefix    string
 	Suffix    string
+	Shebang   string
 	Debug     bool
 	Fallback  bool
 	// RegTable is the package field loaders are registered in: "preload"

@@ -1,7 +1,5 @@
-
 -- Amalgamated by lua-amalgamate
 -- Entry: main
-
 
 do
 local _ENV = _ENV

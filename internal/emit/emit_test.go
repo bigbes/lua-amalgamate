@@ -220,3 +220,26 @@ func TestEmitFallback(t *testing.T) {
 	assert.Contains(t, output, "searchers[#searchers+1] = function(mod)", "fallback should append a searcher")
 	assert.NotContains(t, output, "package.preload[", "fallback should not use package.preload")
 }
+
+func TestEmitShebang(t *testing.T) {
+	mod := &graph.Module{
+		ID:       0,
+		FilePath: "/test/main.lua",
+		Names:    []string{"main"},
+		Source:   []byte("print('hello')"),
+		Requires: []parse.RequireInfo{},
+	}
+	g := &graph.Graph{
+		Modules:  []*graph.Module{mod},
+		ByPath:   map[string]*graph.Module{"/test/main.lua": mod},
+		Entry:    mod,
+		Warnings: []graph.Warning{},
+	}
+
+	var buf bytes.Buffer
+	require.NoError(t, Emit(&buf, g, nil, Options{Shebang: "#!/usr/bin/env lua"}))
+
+	output := buf.String()
+	// The shebang must be the very first line of the file.
+	assert.True(t, strings.HasPrefix(output, "#!/usr/bin/env lua\n"), "shebang must be the first line, got:\n%s", output)
+}

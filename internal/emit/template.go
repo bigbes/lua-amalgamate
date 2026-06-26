@@ -44,13 +44,17 @@ package.{{$.RegTable}}[{{q $primary}}] = function(...)
   package.loaded[name] = true
 {{if not $.NoArgFix}}  local arg = _G.arg
 {{end}}{{if $.Debug}}  return assert((loadstring or load)({{bracket .Source}}, {{q (chunkname .Path)}}))(...)
-{{else}}{{indent .Source 2}}{{end}}end
+{{else}}{{indent .Source 0}}{{end}}end
 end
 {{range .AliasNames}}package.{{$.RegTable}}[{{q .}}] = function(...) return require({{q $primary}}) end
 {{end}}{{end}}return require({{q .EntryName}}){{if .Suffix}}
 {{.Suffix}}{{end}}
 `
 
+// indent prefixes every line of source with `spaces` spaces and normalizes the
+// trailing newline. Module bodies are emitted with spaces=0 (verbatim, column 0)
+// on purpose: prepending indentation would alter the contents of multi-line
+// `[[ ... ]]` string literals inside a module.
 func indent(source string, spaces int) string {
 	if source == "" {
 		return ""

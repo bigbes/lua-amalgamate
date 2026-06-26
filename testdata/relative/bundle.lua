@@ -7,11 +7,11 @@ package.preload["./foo"] = function(...)
   local name = ...
   package.loaded[name] = true
   local arg = _G.arg
-  local M = {}
-  function M.say()
-      return "foo"
-  end
-  return M
+local M = {}
+function M.say()
+    return "foo"
+end
+return M
 end
 end
 do
@@ -20,11 +20,11 @@ package.preload["main"] = function(...)
   local name = ...
   package.loaded[name] = true
   local arg = _G.arg
-  local foo = require("./foo")
-  local bar = require("sub/bar")
-  print("relative test")
-  print(foo.say())
-  print(bar.say())
+local foo = require("./foo")
+local bar = require("sub/bar")
+print("relative test")
+print(foo.say())
+print(bar.say())
 end
 end
 do
@@ -33,11 +33,11 @@ package.preload["sub/bar"] = function(...)
   local name = ...
   package.loaded[name] = true
   local arg = _G.arg
-  local M = {}
-  function M.say()
-      return "bar"
-  end
-  return M
+local M = {}
+function M.say()
+    return "bar"
+end
+return M
 end
 end
 return require("main")

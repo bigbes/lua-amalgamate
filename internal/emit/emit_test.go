@@ -49,7 +49,7 @@ func TestEmitSingleModule(t *testing.T) {
 		"-- Amalgamated by lua-amalgamate",
 		"-- Entry: main",
 		"package.preload[\"main\"] = function(...)",
-		"  print('hello')",
+		"\nprint('hello')\n",
 		"end",
 		"require(\"main\")",
 	}
@@ -265,4 +265,30 @@ func TestEmitNoArgFix(t *testing.T) {
 
 	assert.Contains(t, on.String(), "local arg = _G.arg", "arg alias should be present by default")
 	assert.NotContains(t, off.String(), "local arg = _G.arg", "NoArgFix should omit the arg alias")
+}
+
+func TestEmitPreservesMultilineString(t *testing.T) {
+	// A module whose body contains a multi-line [[ ... ]] string literal with
+	// internal indentation. Emitting must not reindent the source, or the
+	// string's contents would change.
+	src := "return [[\nalpha\n  beta\ngamma\n]]\n"
+	mod := &graph.Module{
+		ID:       0,
+		FilePath: "/test/main.lua",
+		Names:    []string{"main"},
+		Source:   []byte(src),
+		Requires: []parse.RequireInfo{},
+	}
+	g := &graph.Graph{
+		Modules:  []*graph.Module{mod},
+		ByPath:   map[string]*graph.Module{"/test/main.lua": mod},
+		Entry:    mod,
+		Warnings: []graph.Warning{},
+	}
+
+	var buf bytes.Buffer
+	require.NoError(t, Emit(&buf, g, nil, Options{}))
+
+	// The literal's lines must appear verbatim, not shifted by added indentation.
+	assert.Contains(t, buf.String(), "\nalpha\n  beta\ngamma\n", "multi-line string contents must be preserved verbatim")
 }

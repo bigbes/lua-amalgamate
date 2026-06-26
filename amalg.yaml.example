@@ -22,6 +22,25 @@ search:
 # Treat unresolved static requires as errors (default: false)
 strict: false
 
+# Load each module via load(src, "@file") so runtime tracebacks report the
+# original file:line instead of an offset into the bundle (default: false).
+# Best for development builds; keep off for releases (needs load/loadstring at
+# runtime, defeats luac, and is meaningless with line-altering transforms).
+debug: false
+
+# Register modules in package.postload behind an appended searcher, so a copy
+# of a module on package.path takes precedence over the embedded one. Useful
+# for overriding a bundled module locally during development (default: false).
+fallback: false
+
+# Emit `local arg = _G.arg` inside each module to restore the global arg table
+# under Lua 5.1's LUA_COMPAT_VARARG. Set false for amalg's -a (default: true).
+arg_fix: true
+
+# Shebang written as the very first line of the bundle, making it directly
+# executable (optional). Example: "#!/usr/bin/env lua"
+# shebang: "#!/usr/bin/env lua"
+
 # Prefix Lua code inserted before modules (optional)
 # prefix: |
 #   print("Bundle starting")

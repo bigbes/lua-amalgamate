@@ -186,6 +186,16 @@ func main() {
 	if stripShebang.set {
 		cfg.Transform.StripShebang = stripShebang.value
 	}
+	// The --skip / --include flag names don't match their koanf keys
+	// (skip_packages / include_packages), so the posflag provider can't bind
+	// them. Apply them explicitly: when given on the CLI they replace the
+	// config-file values.
+	if len(skip) > 0 {
+		cfg.SkipPackages = skip
+	}
+	if len(include) > 0 {
+		cfg.IncludePackages = include
+	}
 
 	// Apply package_name convenience (already done in config.LoadConfig but we re-apply for CLI flags)
 	if cfg.PackageName != "" {

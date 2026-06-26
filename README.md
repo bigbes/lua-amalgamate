@@ -272,6 +272,47 @@ lua-amalgamate --entry src/main.lua --search lib --search vendor --output bundle
 lua-amalgamate --config build/amalg.yaml --output /tmp/bundle.lua
 ```
 
+## Use as a Go library
+
+The bundler is exposed as a public package for embedding in other tools; the CLI
+is a thin wrapper over it. Import the module root (package `amalgamate`):
+
+```go
+import (
+	"bytes"
+	"fmt"
+
+	amalgamate "github.com/bigbes/lua-amalgamate"
+)
+
+func build() error {
+	opts := amalgamate.DefaultOptions() // sensible defaults (arg-fix on, etc.)
+	opts.Entry = "src/main.lua"
+	opts.Debug = true // any option is a plain struct field
+
+	var buf bytes.Buffer
+	res, err := amalgamate.Bundle(opts, &buf)
+	if err != nil {
+		return err
+	}
+	for _, w := range res.Warnings {
+		fmt.Printf("warning: %s:%d: %s\n", w.File, w.Line, w.Message)
+	}
+	// buf now holds the bundle.
+	return nil
+}
+```
+
+Public API:
+
+- `amalgamate.Options` — all bundling settings (entry, root, path, transforms, `Debug`, `Fallback`, `Shebang`, `ArgFix`, prefixes, skip/include, …). `Bundle` writes to the `io.Writer` you give it and ignores `Options.Output`.
+- `amalgamate.DefaultOptions() Options` — defaults matching the CLI.
+- `amalgamate.LoadOptions(path string) (Options, error)` — load from a YAML file plus `AMALG_*` env vars (a missing file is not an error).
+- `amalgamate.Bundle(opts Options, w io.Writer) (*Result, error)` — runs the full pipeline; resolves the root and the `package_name` convenience itself.
+- `amalgamate.Result{ Warnings []Warning }` — non-fatal issues (dynamic/unresolved requires). In strict mode an unresolved require is a returned error instead.
+
+Implementation packages live under `internal/` and are intentionally not importable; build against the facade above.
+
 ## Module resolution
 
 `require("foo.bar")` is resolved like Lua's `package.searchpath`:

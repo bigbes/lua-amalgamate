@@ -7,12 +7,8 @@ import (
 	"path/filepath"
 	"strconv"
 
+	amalgamate "github.com/bigbes/lua-amalgamate"
 	"github.com/bigbes/lua-amalgamate/internal/config"
-	"github.com/bigbes/lua-amalgamate/internal/emit"
-	"github.com/bigbes/lua-amalgamate/internal/graph"
-	"github.com/bigbes/lua-amalgamate/internal/parse"
-	"github.com/bigbes/lua-amalgamate/internal/resolve"
-	"github.com/bigbes/lua-amalgamate/internal/transform"
 	"github.com/knadh/koanf/parsers/yaml"
 	"github.com/knadh/koanf/providers/env"
 	"github.com/knadh/koanf/providers/file"
@@ -204,41 +200,13 @@ func main() {
 		cfg.PackageName = packageName
 	}
 
-	// Apply package_name convenience (already done in config.LoadConfig but we re-apply for CLI flags)
-	if cfg.PackageName != "" {
-		if cfg.StripPrefix == "" {
-			cfg.StripPrefix = cfg.PackageName
-		}
-		if cfg.PackagePrefix == "" {
-			cfg.PackagePrefix = cfg.PackageName
-		}
-	}
-
 	// Entry is required
 	if cfg.Entry == "" {
 		fmt.Fprintln(os.Stderr, "error: --entry is required (or set in config file)")
 		os.Exit(1)
 	}
 
-	if err := cfg.ResolveRoot(); err != nil {
-		fmt.Fprintf(os.Stderr, "error: %v\n", err)
-		os.Exit(1)
-	}
-
-	parser := parse.New()
-	resolver := resolve.NewWithPrefix(cfg.Root, cfg.Search, cfg.Path, cfg.StripPrefix)
-	g, err := graph.Build(&cfg, parser, resolver)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "error: %v\n", err)
-		os.Exit(1)
-	}
-
-	for _, w := range g.Warnings {
-		fmt.Fprintf(os.Stderr, "warning: %s:%d: %s\n", w.File, w.Line, w.Message)
-	}
-
-	transforms := transform.BuildPipeline(cfg.Transform)
-
+	// Select the output writer (the library Bundle ignores cfg.Output).
 	var out io.Writer = os.Stdout
 	if cfg.Output != "-" {
 		dir := filepath.Dir(cfg.Output)
@@ -255,10 +223,13 @@ func main() {
 		out = f
 	}
 
-	emitOpts := emit.Options{Prefix: cfg.Prefix, Suffix: cfg.Suffix, Shebang: cfg.Shebang, Debug: cfg.Debug, Fallback: cfg.Fallback, NoArgFix: !cfg.ArgFix}
-	if err := emit.Emit(out, g, transforms, emitOpts); err != nil {
-		fmt.Fprintf(os.Stderr, "error: emit: %v\n", err)
+	res, err := amalgamate.Bundle(cfg, out)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		os.Exit(1)
+	}
+	for _, w := range res.Warnings {
+		fmt.Fprintf(os.Stderr, "warning: %s:%d: %s\n", w.File, w.Line, w.Message)
 	}
 }
 

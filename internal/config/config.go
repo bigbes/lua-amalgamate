@@ -128,17 +128,24 @@ func LoadConfig(configPath string) (Config, error) {
 		return Config{}, fmt.Errorf("unmarshal config: %w", err)
 	}
 
-	// Apply package_name convenience
-	if cfg.PackageName != "" {
-		if cfg.StripPrefix == "" {
-			cfg.StripPrefix = cfg.PackageName
-		}
-		if cfg.PackagePrefix == "" {
-			cfg.PackagePrefix = cfg.PackageName
-		}
-	}
+	cfg.ApplyPackageName()
 
 	return cfg, nil
+}
+
+// ApplyPackageName implements the package_name convenience: when PackageName is
+// set, it fills StripPrefix and PackagePrefix from it unless they are already
+// set. Idempotent.
+func (c *Config) ApplyPackageName() {
+	if c.PackageName == "" {
+		return
+	}
+	if c.StripPrefix == "" {
+		c.StripPrefix = c.PackageName
+	}
+	if c.PackagePrefix == "" {
+		c.PackagePrefix = c.PackageName
+	}
 }
 
 func (c *Config) ResolveRoot() error {

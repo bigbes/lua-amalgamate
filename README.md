@@ -309,7 +309,20 @@ Public API:
 - `amalgamate.DefaultOptions() Options` — defaults matching the CLI.
 - `amalgamate.LoadOptions(path string) (Options, error)` — load from a YAML file plus `AMALG_*` env vars (a missing file is not an error).
 - `amalgamate.Bundle(opts Options, w io.Writer) (*Result, error)` — runs the full pipeline; resolves the root and the `package_name` convenience itself.
-- `amalgamate.Result{ Warnings []Warning }` — non-fatal issues (dynamic/unresolved requires). In strict mode an unresolved require is a returned error instead.
+- `amalgamate.Result{ Warnings []Warning }` — non-fatal issues. Each `Warning` is machine-readable: `Kind` (`WarnDynamicRequire`, `WarnSkipped`, `WarnUnresolved`, `WarnCModule`, `WarnNonLua`), `Module` (the require name), plus `File`/`Line`/`Message` for display.
+
+Errors are classifiable rather than string-matched:
+
+```go
+res, err := amalgamate.Bundle(opts, w)
+switch {
+case errors.Is(err, amalgamate.ErrNoEntry):
+	// Options.Entry was empty
+case errors.Is(err, amalgamate.ErrModuleNotFound):
+	var ue *amalgamate.UnresolvedError // strict mode, carries Module/File/Line
+	errors.As(err, &ue)
+}
+```
 
 Implementation packages live under `internal/` and are intentionally not importable; build against the facade above.
 

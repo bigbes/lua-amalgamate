@@ -1,11 +1,16 @@
 package resolve
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 )
+
+// ErrModuleNotFound is the cause wrapped by Resolve when a module cannot be
+// located in any search path. Check it with errors.Is.
+var ErrModuleNotFound = errors.New("module not found")
 
 type Resolver struct {
 	Root        string   // base directory
@@ -79,8 +84,8 @@ func (r *Resolver) Resolve(name string, fromDir string) (*Result, error) {
 		}
 	}
 
-	return nil, fmt.Errorf("module %q not found in any search location; tried:\n  %s",
-		name, strings.Join(tried, "\n  "))
+	return nil, fmt.Errorf("module %q not found in any search location; tried:\n  %s: %w",
+		name, strings.Join(tried, "\n  "), ErrModuleNotFound)
 }
 
 func generateNormalizedNamesForLocation(name, stripPrefix, rootDir, location string) []string {

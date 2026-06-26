@@ -12,11 +12,71 @@ import (
 	"github.com/bigbes/lua-amalgamate/internal/transform"
 )
 
+// WarningKind classifies a non-fatal issue found while building the graph.
+type WarningKind int
+
+const (
+	// WarnDynamicRequire is a require() with a non-literal argument that can't
+	// be resolved statically.
+	WarnDynamicRequire WarningKind = iota
+	// WarnSkipped is a require() excluded by a skip pattern.
+	WarnSkipped
+	// WarnUnresolved is a require() whose module could not be found (non-strict
+	// mode; strict mode returns an *UnresolvedError instead).
+	WarnUnresolved
+	// WarnCModule is a require() that resolved to a C module (.so/.dll).
+	WarnCModule
+	// WarnNonLua is a require() that resolved to a non-.lua file.
+	WarnNonLua
+)
+
+func (k WarningKind) String() string {
+	switch k {
+	case WarnDynamicRequire:
+		return "dynamic-require"
+	case WarnSkipped:
+		return "skipped"
+	case WarnUnresolved:
+		return "unresolved"
+	case WarnCModule:
+		return "c-module"
+	case WarnNonLua:
+		return "non-lua"
+	default:
+		return "unknown"
+	}
+}
+
+// Warning is a non-fatal issue found while building the graph. The require was
+// left in place to resolve at runtime rather than being embedded.
 type Warning struct {
-	File    string
-	Line    int
+	Kind   WarningKind
+	Module string // the require()d module name (may be empty for dynamic requires)
+	File   string // file containing the require ("" for --include packages)
+	Line   int
+	// Message is a human-readable description; Kind/Module are the machine-
+	// readable form.
 	Message string
 }
+
+// UnresolvedError is returned by Build (in strict mode) when a required module
+// cannot be located. It wraps resolve.ErrModuleNotFound, so both
+// errors.As(&UnresolvedError{}) and errors.Is(resolve.ErrModuleNotFound) work.
+type UnresolvedError struct {
+	Module string
+	File   string // "" for an --include package
+	Line   int
+	Err    error
+}
+
+func (e *UnresolvedError) Error() string {
+	if e.File == "" {
+		return fmt.Sprintf("unresolved require %q: %v", e.Module, e.Err)
+	}
+	return fmt.Sprintf("unresolved require %q at %s:%d: %v", e.Module, e.File, e.Line, e.Err)
+}
+
+func (e *UnresolvedError) Unwrap() error { return e.Err }
 
 type Module struct {
 	ID       int
@@ -135,8 +195,8 @@ func Build(cfg *config.Config, parser parse.Parser, resolver *resolve.Resolver) 
 	for _, incName := range cfg.IncludePackages {
 		if cfg.ShouldSkip(incName) {
 			g.Warnings = append(g.Warnings, Warning{
-				File:    "",
-				Line:    0,
+				Kind:    WarnSkipped,
+				Module:  incName,
 				Message: fmt.Sprintf("include package %q skipped (matches skip pattern)", incName),
 			})
 			continue
@@ -144,11 +204,11 @@ func Build(cfg *config.Config, parser parse.Parser, resolver *resolve.Resolver) 
 		result, err := resolver.Resolve(incName, cfg.Root)
 		if err != nil {
 			if cfg.Strict {
-				return nil, fmt.Errorf("include package %q not found: %w", incName, err)
+				return nil, &UnresolvedError{Module: incName, Err: err}
 			}
 			g.Warnings = append(g.Warnings, Warning{
-				File:    "",
-				Line:    0,
+				Kind:    WarnUnresolved,
+				Module:  incName,
 				Message: fmt.Sprintf("include package %q not found: %v", incName, err),
 			})
 			continue
@@ -156,16 +216,16 @@ func Build(cfg *config.Config, parser parse.Parser, resolver *resolve.Resolver) 
 		ext := strings.ToLower(filepath.Ext(result.FilePath))
 		if ext == ".so" || ext == ".dll" {
 			g.Warnings = append(g.Warnings, Warning{
-				File:    "",
-				Line:    0,
+				Kind:    WarnCModule,
+				Module:  incName,
 				Message: fmt.Sprintf("C module %q cannot be amalgamated", incName),
 			})
 			continue
 		}
 		if ext != ".lua" {
 			g.Warnings = append(g.Warnings, Warning{
-				File:    "",
-				Line:    0,
+				Kind:    WarnNonLua,
+				Module:  incName,
 				Message: fmt.Sprintf("non-Lua module %q (extension %s) cannot be amalgamated", incName, ext),
 			})
 			continue
@@ -212,6 +272,8 @@ func Build(cfg *config.Config, parser parse.Parser, resolver *resolve.Resolver) 
 		for _, req := range requires {
 			if !req.Static {
 				g.Warnings = append(g.Warnings, Warning{
+					Kind:    WarnDynamicRequire,
+					Module:  req.Name,
 					File:    mod.FilePath,
 					Line:    req.Line,
 					Message: fmt.Sprintf("dynamic require at line %d, cannot resolve", req.Line),
@@ -221,6 +283,8 @@ func Build(cfg *config.Config, parser parse.Parser, resolver *resolve.Resolver) 
 
 			if cfg.ShouldSkip(req.Name) {
 				g.Warnings = append(g.Warnings, Warning{
+					Kind:    WarnSkipped,
+					Module:  req.Name,
 					File:    mod.FilePath,
 					Line:    req.Line,
 					Message: fmt.Sprintf("skipped package %q at line %d", req.Name, req.Line),
@@ -231,10 +295,11 @@ func Build(cfg *config.Config, parser parse.Parser, resolver *resolve.Resolver) 
 			result, err := resolver.Resolve(req.Name, filepath.Dir(mod.FilePath))
 			if err != nil {
 				if cfg.Strict {
-					return nil, fmt.Errorf("unresolved require %q at %s:%d: %w",
-						req.Name, mod.FilePath, req.Line, err)
+					return nil, &UnresolvedError{Module: req.Name, File: mod.FilePath, Line: req.Line, Err: err}
 				}
 				g.Warnings = append(g.Warnings, Warning{
+					Kind:    WarnUnresolved,
+					Module:  req.Name,
 					File:    mod.FilePath,
 					Line:    req.Line,
 					Message: fmt.Sprintf("unresolved require %q at line %d: %v", req.Name, req.Line, err),
@@ -245,6 +310,8 @@ func Build(cfg *config.Config, parser parse.Parser, resolver *resolve.Resolver) 
 			ext := strings.ToLower(filepath.Ext(result.FilePath))
 			if ext == ".so" || ext == ".dll" {
 				g.Warnings = append(g.Warnings, Warning{
+					Kind:    WarnCModule,
+					Module:  req.Name,
 					File:    mod.FilePath,
 					Line:    req.Line,
 					Message: fmt.Sprintf("C module %q cannot be amalgamated", req.Name),
@@ -254,6 +321,8 @@ func Build(cfg *config.Config, parser parse.Parser, resolver *resolve.Resolver) 
 
 			if ext != ".lua" {
 				g.Warnings = append(g.Warnings, Warning{
+					Kind:    WarnNonLua,
+					Module:  req.Name,
 					File:    mod.FilePath,
 					Line:    req.Line,
 					Message: fmt.Sprintf("non-Lua module %q (extension %s) cannot be amalgamated", req.Name, ext),

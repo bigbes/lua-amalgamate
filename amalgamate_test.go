@@ -2,6 +2,7 @@ package amalgamate_test
 
 import (
 	"bytes"
+	"errors"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -80,7 +81,25 @@ func TestBundleWarnings(t *testing.T) {
 	var buf bytes.Buffer
 	res, err := amalgamate.Bundle(opts, &buf)
 	require.NoError(t, err)
-	assert.NotEmpty(t, res.Warnings, "dynamic require should produce a warning")
+	require.Len(t, res.Warnings, 1, "dynamic require should produce a warning")
+	// Warnings are machine-readable, not just strings.
+	assert.Equal(t, amalgamate.WarnDynamicRequire, res.Warnings[0].Kind)
+}
+
+func TestBundleUnresolvedWarningKind(t *testing.T) {
+	dir := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "main.lua"),
+		[]byte("require(\"nope\")\n"), 0o644))
+
+	opts := amalgamate.DefaultOptions()
+	opts.Entry = filepath.Join(dir, "main.lua")
+	opts.Root = dir
+
+	res, err := amalgamate.Bundle(opts, &bytes.Buffer{})
+	require.NoError(t, err)
+	require.Len(t, res.Warnings, 1)
+	assert.Equal(t, amalgamate.WarnUnresolved, res.Warnings[0].Kind)
+	assert.Equal(t, "nope", res.Warnings[0].Module)
 }
 
 func TestBundleStrictError(t *testing.T) {
@@ -96,12 +115,19 @@ func TestBundleStrictError(t *testing.T) {
 	var buf bytes.Buffer
 	_, err := amalgamate.Bundle(opts, &buf)
 	require.Error(t, err, "strict mode should fail on an unresolved require")
+
+	// The error is classifiable both as a typed error and via its cause.
+	var ue *amalgamate.UnresolvedError
+	require.ErrorAs(t, err, &ue)
+	assert.Equal(t, "does_not_exist", ue.Module)
+	assert.ErrorIs(t, err, amalgamate.ErrModuleNotFound)
 }
 
 func TestBundleMissingEntry(t *testing.T) {
-	// No Entry and no Root -> ResolveRoot fails.
 	_, err := amalgamate.Bundle(amalgamate.DefaultOptions(), &bytes.Buffer{})
-	require.Error(t, err)
+	require.ErrorIs(t, err, amalgamate.ErrNoEntry)
+	// Sanity: errors.Is works against the exported sentinel.
+	assert.True(t, errors.Is(err, amalgamate.ErrNoEntry))
 }
 
 // TestBundleRunsUnderLua proves the public API produces a runnable bundle.

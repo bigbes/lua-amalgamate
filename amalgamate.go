@@ -15,6 +15,7 @@
 package amalgamate
 
 import (
+	"errors"
 	"io"
 
 	"github.com/bigbes/lua-amalgamate/internal/config"
@@ -23,6 +24,31 @@ import (
 	"github.com/bigbes/lua-amalgamate/internal/parse"
 	"github.com/bigbes/lua-amalgamate/internal/resolve"
 	"github.com/bigbes/lua-amalgamate/internal/transform"
+)
+
+// ErrNoEntry is returned by Bundle when Options.Entry is empty.
+var ErrNoEntry = errors.New("amalgamate: entry not set")
+
+// ErrModuleNotFound is the cause wrapped when a required module cannot be
+// located. In strict mode it is wrapped by an *UnresolvedError; check either
+// with errors.Is(err, amalgamate.ErrModuleNotFound).
+var ErrModuleNotFound = resolve.ErrModuleNotFound
+
+// UnresolvedError is returned by Bundle in strict mode when a required module
+// cannot be found. Recover it with errors.As, or test the cause with
+// errors.Is(err, ErrModuleNotFound).
+type UnresolvedError = graph.UnresolvedError
+
+// WarningKind classifies a Warning; see the Warn* constants.
+type WarningKind = graph.WarningKind
+
+// Warning kinds, re-exported from the graph package.
+const (
+	WarnDynamicRequire = graph.WarnDynamicRequire
+	WarnSkipped        = graph.WarnSkipped
+	WarnUnresolved     = graph.WarnUnresolved
+	WarnCModule        = graph.WarnCModule
+	WarnNonLua         = graph.WarnNonLua
 )
 
 // Options configures a bundling run. The zero value is not valid — at minimum
@@ -66,6 +92,9 @@ func LoadOptions(path string) (Options, error) {
 // itself, so a caller only needs to set the fields it cares about. opts is
 // taken by value and not mutated.
 func Bundle(opts Options, w io.Writer) (*Result, error) {
+	if opts.Entry == "" {
+		return nil, ErrNoEntry
+	}
 	opts.ApplyPackageName()
 	if err := opts.ResolveRoot(); err != nil {
 		return nil, err

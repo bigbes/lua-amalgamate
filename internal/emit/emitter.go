@@ -27,6 +27,11 @@ type Options struct {
 	// Shebang, when non-empty, is written as the first line of the bundle
 	// (e.g. "#!/usr/bin/env lua") so the output is directly executable.
 	Shebang string
+	// NoArgFix omits the `local arg = _G.arg` alias from each module. The alias
+	// is emitted by default to counter the implicit `arg` local that Lua 5.1
+	// (LUA_COMPAT_VARARG) injects into vararg functions; set this to drop it
+	// when targeting an interpreter that doesn't need it (amalg's -a).
+	NoArgFix bool
 }
 
 func Emit(w io.Writer, g *graph.Graph, transforms []transform.Transformer, opts Options) error {
@@ -88,6 +93,7 @@ func Emit(w io.Writer, g *graph.Graph, transforms []transform.Transformer, opts 
 		Shebang:   strings.TrimRight(opts.Shebang, "\n"),
 		Debug:     opts.Debug,
 		Fallback:  opts.Fallback,
+		NoArgFix:  opts.NoArgFix,
 		RegTable:  regTable,
 	}
 	return outputTemplate.Execute(w, data)

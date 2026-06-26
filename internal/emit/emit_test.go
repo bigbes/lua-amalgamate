@@ -243,3 +243,26 @@ func TestEmitShebang(t *testing.T) {
 	// The shebang must be the very first line of the file.
 	assert.True(t, strings.HasPrefix(output, "#!/usr/bin/env lua\n"), "shebang must be the first line, got:\n%s", output)
 }
+
+func TestEmitNoArgFix(t *testing.T) {
+	mod := &graph.Module{
+		ID:       0,
+		FilePath: "/test/main.lua",
+		Names:    []string{"main"},
+		Source:   []byte("print('hello')"),
+		Requires: []parse.RequireInfo{},
+	}
+	g := &graph.Graph{
+		Modules:  []*graph.Module{mod},
+		ByPath:   map[string]*graph.Module{"/test/main.lua": mod},
+		Entry:    mod,
+		Warnings: []graph.Warning{},
+	}
+
+	var on, off bytes.Buffer
+	require.NoError(t, Emit(&on, g, nil, Options{}))
+	require.NoError(t, Emit(&off, g, nil, Options{NoArgFix: true}))
+
+	assert.Contains(t, on.String(), "local arg = _G.arg", "arg alias should be present by default")
+	assert.NotContains(t, off.String(), "local arg = _G.arg", "NoArgFix should omit the arg alias")
+}

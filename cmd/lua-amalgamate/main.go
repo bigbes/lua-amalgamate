@@ -45,6 +45,7 @@ func main() {
 		stripShebang     optionalBool
 		debug            optionalBool
 		fallback         optionalBool
+		noArgFix         optionalBool
 		prefix           string
 		suffix           string
 		shebang          string
@@ -65,6 +66,7 @@ func main() {
 	pflag.Var(&strict, "strict", "Treat unresolved requires as errors")
 	pflag.Var(&debug, "debug", "Load modules via load(src, '@file') so tracebacks keep original file:line")
 	pflag.Var(&fallback, "fallback", "Register modules in package.postload behind a searcher so on-disk modules take precedence")
+	pflag.Var(&noArgFix, "no-arg-fix", "Omit the 'local arg = _G.arg' alias (only needed on Lua 5.1 with LUA_COMPAT_VARARG)")
 	pflag.Var(&removeComments, "remove-comments", "Strip Lua comments from output")
 	pflag.Var(&removeEmptyLines, "remove-empty-lines", "Strip empty lines from output")
 	pflag.Var(&minify, "minify", "Minify Lua source in output")
@@ -82,7 +84,7 @@ func main() {
 	// swallows the next token as the flag's value).
 	for _, name := range []string{
 		"strict", "remove-comments", "remove-empty-lines",
-		"minify", "strip-shebang", "debug", "fallback",
+		"minify", "strip-shebang", "debug", "fallback", "no-arg-fix",
 	} {
 		pflag.Lookup(name).NoOptDefVal = "true"
 	}
@@ -107,6 +109,7 @@ func main() {
 	k.Set("strict", defaultCfg.Strict)
 	k.Set("debug", defaultCfg.Debug)
 	k.Set("fallback", defaultCfg.Fallback)
+	k.Set("arg_fix", defaultCfg.ArgFix)
 	k.Set("transform.remove_comments", defaultCfg.Transform.RemoveComments)
 	k.Set("transform.remove_empty_lines", defaultCfg.Transform.RemoveEmptyLines)
 	k.Set("transform.minify", defaultCfg.Transform.Minify)
@@ -166,6 +169,10 @@ func main() {
 	}
 	if fallback.set {
 		cfg.Fallback = fallback.value
+	}
+	// --no-arg-fix is the CLI inverse of the positive arg_fix config option.
+	if noArgFix.set {
+		cfg.ArgFix = !noArgFix.value
 	}
 	if removeComments.set {
 		cfg.Transform.RemoveComments = removeComments.value
@@ -231,7 +238,7 @@ func main() {
 		out = f
 	}
 
-	emitOpts := emit.Options{Prefix: cfg.Prefix, Suffix: cfg.Suffix, Shebang: cfg.Shebang, Debug: cfg.Debug, Fallback: cfg.Fallback}
+	emitOpts := emit.Options{Prefix: cfg.Prefix, Suffix: cfg.Suffix, Shebang: cfg.Shebang, Debug: cfg.Debug, Fallback: cfg.Fallback, NoArgFix: !cfg.ArgFix}
 	if err := emit.Emit(out, g, transforms, emitOpts); err != nil {
 		fmt.Fprintf(os.Stderr, "error: emit: %v\n", err)
 		os.Exit(1)

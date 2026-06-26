@@ -28,6 +28,7 @@ type Config struct {
 	Strict          bool            `yaml:"strict" mapstructure:"strict" koanf:"strict"`
 	Debug           bool            `yaml:"debug" mapstructure:"debug" koanf:"debug"`
 	Fallback        bool            `yaml:"fallback" mapstructure:"fallback" koanf:"fallback"`
+	ArgFix          bool            `yaml:"arg_fix" mapstructure:"arg_fix" koanf:"arg_fix"`
 	Transform       TransformConfig `yaml:"transform" mapstructure:"transform" koanf:"transform"`
 	Prefix          string          `yaml:"prefix" mapstructure:"prefix" koanf:"prefix"`
 	Suffix          string          `yaml:"suffix" mapstructure:"suffix" koanf:"suffix"`
@@ -47,6 +48,7 @@ func Default() Config {
 		Strict:   false,
 		Debug:    false,
 		Fallback: false,
+		ArgFix:   true,
 		Transform: TransformConfig{
 			RemoveComments:   false,
 			RemoveEmptyLines: false,
@@ -81,6 +83,7 @@ func LoadConfig(configPath string) (Config, error) {
 	k.Set("strict", defaultCfg.Strict)
 	k.Set("debug", defaultCfg.Debug)
 	k.Set("fallback", defaultCfg.Fallback)
+	k.Set("arg_fix", defaultCfg.ArgFix)
 	k.Set("transform.remove_comments", defaultCfg.Transform.RemoveComments)
 	k.Set("transform.remove_empty_lines", defaultCfg.Transform.RemoveEmptyLines)
 	k.Set("transform.minify", defaultCfg.Transform.Minify)

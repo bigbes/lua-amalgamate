@@ -42,8 +42,8 @@ local _ENV = _ENV
 package.{{$.RegTable}}[{{q $primary}}] = function(...)
   local name = ...
   package.loaded[name] = true
-  local arg = _G.arg
-{{if $.Debug}}  return assert((loadstring or load)({{bracket .Source}}, {{q (chunkname .Path)}}))(...)
+{{if not $.NoArgFix}}  local arg = _G.arg
+{{end}}{{if $.Debug}}  return assert((loadstring or load)({{bracket .Source}}, {{q (chunkname .Path)}}))(...)
 {{else}}{{indent .Source 2}}{{end}}end
 end
 {{range .AliasNames}}package.{{$.RegTable}}[{{q .}}] = function(...) return require({{q $primary}}) end
@@ -134,6 +134,7 @@ type templateData struct {
 	Shebang   string
 	Debug     bool
 	Fallback  bool
+	NoArgFix  bool
 	// RegTable is the package field loaders are registered in: "preload"
 	// normally, "postload" in fallback mode.
 	RegTable string

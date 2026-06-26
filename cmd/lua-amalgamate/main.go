@@ -43,6 +43,7 @@ func main() {
 		removeEmptyLines optionalBool
 		minify           optionalBool
 		stripShebang     optionalBool
+		debug            optionalBool
 		prefix           string
 		suffix           string
 		packagePrefix    string
@@ -60,6 +61,7 @@ func main() {
 	pflag.Var(&skip, "skip", "Skip package (pattern, repeatable)")
 	pflag.Var(&include, "include", "Include package (exact name, repeatable)")
 	pflag.Var(&strict, "strict", "Treat unresolved requires as errors")
+	pflag.Var(&debug, "debug", "Load modules via load(src, '@file') so tracebacks keep original file:line")
 	pflag.Var(&removeComments, "remove-comments", "Strip Lua comments from output")
 	pflag.Var(&removeEmptyLines, "remove-empty-lines", "Strip empty lines from output")
 	pflag.Var(&minify, "minify", "Minify Lua source in output")
@@ -70,6 +72,16 @@ func main() {
 	pflag.StringVar(&packageName, "package-name", "", "Package name (sets both strip-prefix and package-prefix to this value)")
 	pflag.StringVar(&stripPrefix, "strip-prefix", "", "Strip prefix from module names (e.g., 'tuple_diff' makes require('tuple_diff.lib.foo') find 'lib/foo.lua')")
 	pflag.BoolVar(&showVersion, "version", false, "Print version and exit")
+
+	// optionalBool flags are custom Var flags, so pflag doesn't infer that they
+	// take no argument. Mark each so bare `--flag` means true (otherwise pflag
+	// swallows the next token as the flag's value).
+	for _, name := range []string{
+		"strict", "remove-comments", "remove-empty-lines",
+		"minify", "strip-shebang", "debug",
+	} {
+		pflag.Lookup(name).NoOptDefVal = "true"
+	}
 
 	pflag.Parse()
 
@@ -89,6 +101,7 @@ func main() {
 	k.Set("path", defaultCfg.Path)
 	k.Set("search", defaultCfg.Search)
 	k.Set("strict", defaultCfg.Strict)
+	k.Set("debug", defaultCfg.Debug)
 	k.Set("transform.remove_comments", defaultCfg.Transform.RemoveComments)
 	k.Set("transform.remove_empty_lines", defaultCfg.Transform.RemoveEmptyLines)
 	k.Set("transform.minify", defaultCfg.Transform.Minify)
@@ -141,6 +154,9 @@ func main() {
 	// Apply optionalBool overrides (since koanf can't handle tri-state bools)
 	if strict.set {
 		cfg.Strict = strict.value
+	}
+	if debug.set {
+		cfg.Debug = debug.value
 	}
 	if removeComments.set {
 		cfg.Transform.RemoveComments = removeComments.value
@@ -206,7 +222,8 @@ func main() {
 		out = f
 	}
 
-	if err := emit.Emit(out, g, transforms, cfg.Prefix, cfg.Suffix); err != nil {
+	emitOpts := emit.Options{Prefix: cfg.Prefix, Suffix: cfg.Suffix, Debug: cfg.Debug}
+	if err := emit.Emit(out, g, transforms, emitOpts); err != nil {
 		fmt.Fprintf(os.Stderr, "error: emit: %v\n", err)
 		os.Exit(1)
 	}

@@ -10,7 +10,20 @@ import (
 	"github.com/bigbes/lua-amalgamate/internal/transform"
 )
 
-func Emit(w io.Writer, g *graph.Graph, transforms []transform.Transformer, prefix, suffix string) error {
+// Options controls how the bundle is rendered.
+type Options struct {
+	// Prefix is Lua code inserted before the modules.
+	Prefix string
+	// Suffix is Lua code appended after the entry require.
+	Suffix string
+	// Debug emits each module via load(source, "@path") so runtime errors
+	// report the original file name and line numbers instead of offsets into
+	// the bundle. The source is embedded verbatim (no reindentation).
+	Debug bool
+}
+
+func Emit(w io.Writer, g *graph.Graph, transforms []transform.Transformer, opts Options) error {
+	prefix, suffix := opts.Prefix, opts.Suffix
 	// Ensure prefix ends with newline if present
 	if prefix != "" && !strings.HasSuffix(prefix, "\n") {
 		prefix = prefix + "\n"
@@ -50,6 +63,7 @@ func Emit(w io.Writer, g *graph.Graph, transforms []transform.Transformer, prefi
 			PrimaryName: primaryName(mod),
 			AliasNames:  aliases,
 			Source:      string(source),
+			Path:        mod.FilePath,
 		}
 		moduleDataList = append(moduleDataList, data)
 	}
@@ -60,6 +74,7 @@ func Emit(w io.Writer, g *graph.Graph, transforms []transform.Transformer, prefi
 		Modules:   moduleDataList,
 		Prefix:    prefix,
 		Suffix:    suffix,
+		Debug:     opts.Debug,
 	}
 	return outputTemplate.Execute(w, data)
 }

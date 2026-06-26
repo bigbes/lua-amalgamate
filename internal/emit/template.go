@@ -24,7 +24,8 @@ package.preload[{{q $primary}}] = function(...)
   local name = ...
   package.loaded[name] = true
   local arg = _G.arg
-{{indent .Source 2}}end
+{{if $.Debug}}  return assert((loadstring or load)({{bracket .Source}}, {{q (chunkname .Path)}}))(...)
+{{else}}{{indent .Source 2}}{{end}}end
 end
 {{range .AliasNames}}package.preload[{{q .}}] = function(...) return require({{q $primary}}) end
 {{end}}{{end}}return require({{q .EntryName}}){{if .Suffix}}
@@ -76,10 +77,33 @@ func quoteLua(s string) string {
 	return b.String()
 }
 
+// luaLongBracket wraps s in a Lua long-bracket string literal (`[==[ … ]==]`),
+// choosing a level of `=` that does not collide with any closing sequence in s.
+// A newline is inserted right after the opening bracket; Lua discards that first
+// newline, so the embedded source keeps its original line numbering — which is
+// the whole point in debug mode. The source is embedded verbatim (no escaping,
+// no reindentation), so multi-line string literals inside modules survive intact.
+func luaLongBracket(s string) string {
+	level := 0
+	for strings.Contains(s, "]"+strings.Repeat("=", level)+"]") {
+		level++
+	}
+	eq := strings.Repeat("=", level)
+	return "[" + eq + "[\n" + s + "]" + eq + "]"
+}
+
+// chunkName renders the load() chunk name for a module path. The leading '@'
+// tells Lua to treat the rest as a file name in error messages and tracebacks.
+func chunkName(path string) string {
+	return "@" + path
+}
+
 var outputTemplate = template.Must(
 	template.New("output").Funcs(template.FuncMap{
-		"indent": indent,
-		"q":      quoteLua,
+		"indent":    indent,
+		"q":         quoteLua,
+		"bracket":   luaLongBracket,
+		"chunkname": chunkName,
 	}).Parse(templateText),
 )
 
@@ -88,10 +112,12 @@ type templateData struct {
 	Modules   []moduleData
 	Prefix    string
 	Suffix    string
+	Debug     bool
 }
 
 type moduleData struct {
 	PrimaryName string
 	AliasNames  []string
 	Source      string
+	Path        string
 }

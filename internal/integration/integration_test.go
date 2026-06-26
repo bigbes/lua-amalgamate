@@ -89,7 +89,7 @@ func runIntegrationTest(t *testing.T, luaPath, dir, entryPath string) {
 	}
 
 	var buf bytes.Buffer
-	if err := emit.Emit(&buf, g, nil, "", ""); err != nil {
+	if err := emit.Emit(&buf, g, nil, emit.Options{}); err != nil {
 		t.Fatalf("emit: %v", err)
 	}
 	bundle := buf.Bytes()
@@ -118,6 +118,62 @@ func runIntegrationTest(t *testing.T, luaPath, dir, entryPath string) {
 	// Compare errors: both empty or both non-empty
 	if (origErr == "") != (bundleErr == "") {
 		t.Errorf("error presence mismatch\noriginal error:\n%s\nbundle error:\n%s", origErr, bundleErr)
+	}
+}
+
+// TestDebugTraceback verifies that --debug makes runtime errors report the
+// original module file and line number instead of an offset into the bundle.
+func TestDebugTraceback(t *testing.T) {
+	luaPath := findLua()
+	if luaPath == "" {
+		t.Skip("lua interpreter not found in PATH")
+	}
+
+	dir := t.TempDir()
+	mainPath := filepath.Join(dir, "main.lua")
+	boomPath := filepath.Join(dir, "boom.lua")
+	if err := os.WriteFile(mainPath, []byte("local m = require(\"boom\")\nm.go()\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	// error() is on line 3 of boom.lua.
+	if err := os.WriteFile(boomPath, []byte("local M = {}\nfunction M.go()\n  error(\"kaboom\")\nend\nreturn M\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	cfg := config.Config{Entry: mainPath, Root: dir, Path: "?.lua;?/init.lua"}
+	if err := cfg.ResolveRoot(); err != nil {
+		t.Fatalf("resolve root: %v", err)
+	}
+	g, err := graph.Build(&cfg, parse.New(), resolve.New(cfg.Root, nil, cfg.Path))
+	if err != nil {
+		t.Fatalf("build graph: %v", err)
+	}
+
+	var buf bytes.Buffer
+	if err := emit.Emit(&buf, g, nil, emit.Options{Debug: true}); err != nil {
+		t.Fatalf("emit: %v", err)
+	}
+
+	bundlePath := filepath.Join(dir, "bundle.lua")
+	if err := os.WriteFile(bundlePath, buf.Bytes(), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	_, stderr := runLua(t, luaPath, bundlePath, dir)
+	// The error origin (first line) must report the original module file:line,
+	// not an offset into the bundle.
+	errLine := stderr
+	if i := strings.IndexByte(stderr, '\n'); i >= 0 {
+		errLine = stderr[:i]
+	}
+	// Lua truncates long chunk names (LUA_IDSIZE) with a leading "...", so match
+	// on the base name + line rather than the full temp path.
+	want := "boom.lua:3"
+	if !strings.Contains(errLine, want) {
+		t.Errorf("debug error should point at original file:line\nwant substring: %q\ngot first line: %q\nfull stderr:\n%s", want, errLine, stderr)
+	}
+	if strings.Contains(errLine, "bundle.lua:") {
+		t.Errorf("debug error should not originate from bundle.lua\ngot first line: %q", errLine)
 	}
 }
 

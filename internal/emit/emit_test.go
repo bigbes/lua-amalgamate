@@ -40,7 +40,7 @@ func TestEmitSingleModule(t *testing.T) {
 	}
 
 	var buf bytes.Buffer
-	if err := Emit(&buf, g, nil, "", ""); err != nil {
+	if err := Emit(&buf, g, nil, Options{}); err != nil {
 		t.Fatalf("Emit() error = %v", err)
 	}
 
@@ -105,7 +105,7 @@ func TestEmitMultiModule(t *testing.T) {
 	}
 
 	var buf bytes.Buffer
-	if err := Emit(&buf, g, nil, "", ""); err != nil {
+	if err := Emit(&buf, g, nil, Options{}); err != nil {
 		t.Fatalf("Emit() error = %v", err)
 	}
 
@@ -153,7 +153,7 @@ func TestEmitModuleWithAliases(t *testing.T) {
 	}
 
 	var buf bytes.Buffer
-	if err := Emit(&buf, g, nil, "", ""); err != nil {
+	if err := Emit(&buf, g, nil, Options{}); err != nil {
 		t.Fatalf("Emit() error = %v", err)
 	}
 
@@ -203,7 +203,7 @@ func TestEmitSuffix(t *testing.T) {
 
 	var buf bytes.Buffer
 	suffixCode := "print('suffix')"
-	if err := Emit(&buf, g, nil, "", suffixCode); err != nil {
+	if err := Emit(&buf, g, nil, Options{Suffix: suffixCode}); err != nil {
 		t.Fatalf("Emit() error = %v", err)
 	}
 

@@ -147,6 +147,33 @@ func TestDebugTraceback(t *testing.T) {
 	assert.NotContains(t, errLine, "bundle.lua:", "debug error should not originate from bundle.lua\ngot first line: %q", errLine)
 }
 
+// TestCircularDependency verifies that the bundle resolves a require() cycle
+// (a -> b -> a). The un-bundled project stack-overflows, so TestIntegration
+// skips this dir; here we run the bundle directly and assert it succeeds — this
+// is what the `package.loaded[name] = true` guard buys.
+func TestCircularDependency(t *testing.T) {
+	luaPath := findLua()
+	if luaPath == "" {
+		t.Skip("lua interpreter not found in PATH")
+	}
+
+	dir := "../../testdata/circular"
+	cfg := config.Config{Entry: filepath.Join(dir, "main.lua"), Root: dir, Path: "?.lua;?/init.lua"}
+	require.NoError(t, cfg.ResolveRoot())
+	g, err := graph.Build(&cfg, parse.New(), resolve.New(cfg.Root, nil, cfg.Path))
+	require.NoError(t, err, "build graph")
+
+	var buf bytes.Buffer
+	require.NoError(t, emit.Emit(&buf, g, nil, emit.Options{}), "emit")
+
+	bundlePath := filepath.Join(t.TempDir(), "bundle.lua")
+	require.NoError(t, os.WriteFile(bundlePath, buf.Bytes(), 0o644))
+
+	stdout, stderr := runLua(t, luaPath, bundlePath, dir)
+	assert.Empty(t, stderr, "circular bundle should run without error")
+	assert.Equal(t, "circular test\na\nb", stdout)
+}
+
 // TestFallbackOnDiskOverride verifies that in fallback mode an on-disk module
 // found on package.path takes precedence over the embedded copy, while a normal
 // bundle uses the embedded copy.

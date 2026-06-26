@@ -196,3 +196,33 @@ include_packages:
 	// Ensure other fields are default
 	assert.Len(t, cfg.SkipPackages, 0, "SkipPackages = %v, want empty slice", cfg.SkipPackages)
 }
+
+func TestEnvKeyMap(t *testing.T) {
+	cases := map[string]string{
+		"AMALG_ENTRY":                     "entry",
+		"AMALG_ARG_FIX":                   "arg_fix",
+		"AMALG_STRIP_PREFIX":              "strip_prefix",
+		"AMALG_PACKAGE_NAME":              "package_name",
+		"AMALG_TRANSFORM_MINIFY":          "transform.minify",
+		"AMALG_TRANSFORM_REMOVE_COMMENTS": "transform.remove_comments",
+	}
+	for env, want := range cases {
+		assert.Equal(t, want, EnvKeyMap(env), "EnvKeyMap(%q)", env)
+	}
+}
+
+func TestLoadConfigEnvOverrides(t *testing.T) {
+	// Env vars must map to the right koanf keys, including multi-word and
+	// nested transform keys.
+	t.Setenv("AMALG_ENTRY", "envmain.lua")
+	t.Setenv("AMALG_STRIP_PREFIX", "mylib")
+	t.Setenv("AMALG_ARG_FIX", "false")
+	t.Setenv("AMALG_TRANSFORM_REMOVE_COMMENTS", "true")
+
+	cfg, err := LoadConfig("does-not-exist.yaml")
+	require.NoError(t, err)
+	assert.Equal(t, "envmain.lua", cfg.Entry)
+	assert.Equal(t, "mylib", cfg.StripPrefix)
+	assert.False(t, cfg.ArgFix, "AMALG_ARG_FIX=false should disable arg_fix")
+	assert.True(t, cfg.Transform.RemoveComments, "AMALG_TRANSFORM_REMOVE_COMMENTS=true should enable it")
+}

@@ -162,13 +162,13 @@ transform:
 
 ### Environment variables
 
-Top-level options can be set with the `AMALG_` prefix (handy in CI):
+Any option can be set with the `AMALG_` prefix and the option's name upper-cased (handy in CI):
 
 ```bash
 AMALG_ENTRY=src/main.lua AMALG_OUTPUT=dist/bundle.lua AMALG_STRICT=true lua-amalgamate
 ```
 
-Recognized: `AMALG_ENTRY`, `AMALG_OUTPUT`, `AMALG_ROOT`, `AMALG_PATH`, `AMALG_STRICT`, `AMALG_DEBUG`, `AMALG_FALLBACK`, `AMALG_SHEBANG`, `AMALG_PREFIX`, `AMALG_SUFFIX`. (Nested `transform.*` options are set via YAML or CLI flags.)
+Multi-word and nested options map as you'd expect — `AMALG_STRIP_PREFIX` → `strip_prefix`, `AMALG_ARG_FIX` → `arg_fix`, and `AMALG_TRANSFORM_REMOVE_COMMENTS` → `transform.remove_comments`. (List-valued options like `skip_packages` are best set in YAML.)
 
 ## Examples
 

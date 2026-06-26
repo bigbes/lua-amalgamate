@@ -66,6 +66,19 @@ func Default() Config {
 	}
 }
 
+// EnvKeyMap maps an AMALG_-prefixed environment variable name to its koanf key.
+// The only nested config section is `transform`, so AMALG_TRANSFORM_X becomes
+// transform.x; every other key keeps its underscores intact (e.g.
+// AMALG_STRIP_PREFIX -> strip_prefix, AMALG_ARG_FIX -> arg_fix). A blanket
+// "_" -> "." replacement would mangle every multi-word key.
+func EnvKeyMap(s string) string {
+	s = strings.ToLower(strings.TrimPrefix(s, "AMALG_"))
+	if rest, ok := strings.CutPrefix(s, "transform_"); ok {
+		return "transform." + rest
+	}
+	return s
+}
+
 func LoadConfig(configPath string) (Config, error) {
 	if configPath == "" {
 		configPath = "amalg.yaml"
@@ -106,13 +119,7 @@ func LoadConfig(configPath string) (Config, error) {
 	}
 
 	// Load environment variables
-	if err := k.Load(env.Provider("AMALG_", ".", func(s string) string {
-		// Convert AMALG_ENTRY to entry, AMALG_TRANSFORM_REMOVE_COMMENTS to transform.remove_comments
-		s = strings.TrimPrefix(s, "AMALG_")
-		s = strings.ToLower(s)
-		s = strings.ReplaceAll(s, "_", ".")
-		return s
-	}), nil); err != nil {
+	if err := k.Load(env.Provider("AMALG_", ".", EnvKeyMap), nil); err != nil {
 		return Config{}, fmt.Errorf("load environment: %w", err)
 	}
 

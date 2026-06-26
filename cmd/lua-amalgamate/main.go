@@ -6,7 +6,6 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
-	"strings"
 
 	"github.com/bigbes/lua-amalgamate/internal/config"
 	"github.com/bigbes/lua-amalgamate/internal/emit"
@@ -137,12 +136,7 @@ func main() {
 	}
 
 	// Load environment variables
-	if err := k.Load(env.Provider("AMALG_", ".", func(s string) string {
-		s = strings.TrimPrefix(s, "AMALG_")
-		s = strings.ToLower(s)
-		s = strings.ReplaceAll(s, "_", ".")
-		return s
-	}), nil); err != nil {
+	if err := k.Load(env.Provider("AMALG_", ".", config.EnvKeyMap), nil); err != nil {
 		fmt.Fprintf(os.Stderr, "error: load environment: %v\n", err)
 		os.Exit(1)
 	}
